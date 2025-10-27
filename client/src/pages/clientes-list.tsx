@@ -15,17 +15,20 @@ export default function ClientesList() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: clientes, isLoading } = useQuery<Cliente[]>({
-    queryKey: ['/api/clientes'],
+    queryKey: ['/api/clientes', searchTerm],
+    queryFn: async () => {
+      const url = searchTerm 
+        ? `/api/clientes?q=${encodeURIComponent(searchTerm)}`
+        : '/api/clientes';
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) {
+        throw new Error(`${res.status}: ${await res.text()}`);
+      }
+      return res.json();
+    },
   });
 
-  const filteredClientes = clientes?.filter(cliente => 
-    cliente.activo && (
-      cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.apellidos.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.nie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.email.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  ) || [];
+  const filteredClientes = clientes || [];
 
   return (
     <div className="min-h-screen bg-background">

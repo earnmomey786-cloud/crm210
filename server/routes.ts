@@ -7,6 +7,13 @@ import { fromZodError } from "zod-validation-error";
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/clientes', async (req, res) => {
     try {
+      const searchQuery = req.query.q as string | undefined;
+      
+      if (searchQuery) {
+        const clientes = await storage.searchClientes(searchQuery);
+        return res.json(clientes);
+      }
+      
       const clientes = await storage.getClientes();
       res.json(clientes);
     } catch (error: any) {

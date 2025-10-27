@@ -10,11 +10,12 @@ import {
   type InsertCopropietario,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, or, ilike } from "drizzle-orm";
 
 export interface IStorage {
   getCliente(id: number): Promise<Cliente | undefined>;
   getClientes(): Promise<Cliente[]>;
+  searchClientes(query: string): Promise<Cliente[]>;
   createCliente(cliente: InsertCliente): Promise<Cliente>;
   updateCliente(id: number, cliente: Partial<InsertCliente>): Promise<Cliente | undefined>;
   deleteCliente(id: number): Promise<void>;
@@ -38,6 +39,20 @@ export class DatabaseStorage implements IStorage {
 
   async getClientes(): Promise<Cliente[]> {
     return await db.select().from(clientes).where(eq(clientes.activo, true));
+  }
+
+  async searchClientes(query: string): Promise<Cliente[]> {
+    const searchPattern = `%${query}%`;
+    return await db.select().from(clientes).where(
+      and(
+        eq(clientes.activo, true),
+        or(
+          ilike(clientes.nie, searchPattern),
+          ilike(clientes.nombre, searchPattern),
+          ilike(clientes.apellidos, searchPattern)
+        )
+      )
+    );
   }
 
   async createCliente(insertCliente: InsertCliente): Promise<Cliente> {
