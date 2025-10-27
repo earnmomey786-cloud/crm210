@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
-import { ChevronLeft, Plus, Building2, Home, MapPin } from "lucide-react";
+import { ChevronLeft, Plus, Building2, Home, MapPin, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NuevaPropiedadDialog } from "@/components/nueva-propiedad-dialog";
+import { NuevoClienteDialog } from "@/components/nuevo-cliente-dialog";
 import type { Cliente, Propiedad } from "@shared/schema";
 
 export default function ClientePropiedades() {
@@ -14,6 +15,7 @@ export default function ClientePropiedades() {
   const [, navigate] = useLocation();
   const clienteId = parseInt(params.id || "0");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editClienteDialogOpen, setEditClienteDialogOpen] = useState(false);
 
   const { data: cliente, isLoading: loadingCliente } = useQuery<Cliente>({
     queryKey: ['/api/clientes', clienteId],
@@ -99,14 +101,25 @@ export default function ClientePropiedades() {
                 NIE: <span className="font-mono font-medium">{cliente.nie}</span>
               </p>
             </div>
-            <Button 
-              onClick={() => setDialogOpen(true)}
-              className="rounded-lg shadow-md"
-              data-testid="button-nueva-propiedad"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Nueva Propiedad
-            </Button>
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => setEditClienteDialogOpen(true)}
+                variant="outline"
+                className="rounded-lg"
+                data-testid="button-editar-cliente"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Editar Cliente
+              </Button>
+              <Button 
+                onClick={() => setDialogOpen(true)}
+                className="rounded-lg shadow-md"
+                data-testid="button-nueva-propiedad"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Nueva Propiedad
+              </Button>
+            </div>
           </div>
 
           <Card className="p-6 rounded-2xl mb-8" data-testid="card-info-cliente">
@@ -235,6 +248,12 @@ export default function ClientePropiedades() {
           onOpenChange={setDialogOpen}
           clienteId={clienteId}
           clienteNombre={`${cliente.nombre} ${cliente.apellidos}`}
+        />
+
+        <NuevoClienteDialog
+          open={editClienteDialogOpen}
+          onOpenChange={setEditClienteDialogOpen}
+          cliente={cliente}
         />
       </div>
     </div>

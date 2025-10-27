@@ -9,12 +9,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { NuevaPropiedadDialog } from "@/components/nueva-propiedad-dialog";
 import type { Propiedad, Cliente, Copropietario } from "@shared/schema";
 
 export default function PropiedadDetalle() {
   const params = useParams();
   const [, navigate] = useLocation();
   const propiedadId = parseInt(params.id || "0");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const { data: propiedad, isLoading: loadingPropiedad } = useQuery<Propiedad>({
     queryKey: ['/api/propiedades', propiedadId],
@@ -117,6 +119,7 @@ export default function PropiedadDetalle() {
               </div>
             </div>
             <Button 
+              onClick={() => setEditDialogOpen(true)}
               variant="outline" 
               className="rounded-lg"
               data-testid="button-editar-propiedad"
@@ -340,6 +343,14 @@ export default function PropiedadDetalle() {
             </Button>
           </div>
         </div>
+
+        <NuevaPropiedadDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          clienteId={cliente.idCliente}
+          clienteNombre={`${cliente.nombre} ${cliente.apellidos}`}
+          propiedad={propiedad}
+        />
       </div>
     </div>
   );

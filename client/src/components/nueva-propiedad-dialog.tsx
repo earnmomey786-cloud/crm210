@@ -1,7 +1,8 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { insertPropiedadSchema, type InsertPropiedad } from "@shared/schema";
+import { insertPropiedadSchema, type InsertPropiedad, propiedades } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -38,7 +39,10 @@ interface NuevaPropiedadDialogProps {
   onOpenChange: (open: boolean) => void;
   clienteId: number;
   clienteNombre: string;
+  propiedad?: Propiedad;
 }
+
+type Propiedad = typeof propiedades.$inferSelect;
 
 const TIPOS_INMUEBLE = [
   { value: "vivienda", label: "Vivienda" },
@@ -49,38 +53,65 @@ const TIPOS_INMUEBLE = [
   { value: "otro", label: "Otro" },
 ];
 
-export function NuevaPropiedadDialog({ open, onOpenChange, clienteId, clienteNombre }: NuevaPropiedadDialogProps) {
+export function NuevaPropiedadDialog({ open, onOpenChange, clienteId, clienteNombre, propiedad }: NuevaPropiedadDialogProps) {
   const { toast } = useToast();
+  const isEditMode = !!propiedad;
 
   const form = useForm<InsertPropiedad>({
     resolver: zodResolver(insertPropiedadSchema),
     defaultValues: {
       idCliente: clienteId,
-      referenciaCatastral: "",
-      direccion: "",
-      provincia: "",
-      municipio: "",
-      tipo: "vivienda",
-      tipoDeclaracion: "imputacion",
-      fechaCompra: "",
-      precioCompra: "",
-      valorCatastralTotal: "",
-      valorCatastralSuelo: "",
-      valorCatastralConstruccion: "",
-      notas: "",
+      referenciaCatastral: propiedad?.referenciaCatastral || "",
+      direccion: propiedad?.direccion || "",
+      provincia: propiedad?.provincia || "",
+      municipio: propiedad?.municipio || "",
+      tipo: propiedad?.tipo || "vivienda",
+      tipoDeclaracion: propiedad?.tipoDeclaracion || "imputacion",
+      fechaCompra: propiedad?.fechaCompra || "",
+      precioCompra: propiedad?.precioCompra || "",
+      valorCatastralTotal: propiedad?.valorCatastralTotal || "",
+      valorCatastralSuelo: propiedad?.valorCatastralSuelo || "",
+      valorCatastralConstruccion: propiedad?.valorCatastralConstruccion || "",
+      notas: propiedad?.notas || "",
     },
   });
 
-  const createMutation = useMutation({
+  useEffect(() => {
+    form.reset({
+      idCliente: clienteId,
+      referenciaCatastral: propiedad?.referenciaCatastral || "",
+      direccion: propiedad?.direccion || "",
+      provincia: propiedad?.provincia || "",
+      municipio: propiedad?.municipio || "",
+      tipo: propiedad?.tipo || "vivienda",
+      tipoDeclaracion: propiedad?.tipoDeclaracion || "imputacion",
+      fechaCompra: propiedad?.fechaCompra || "",
+      precioCompra: propiedad?.precioCompra || "",
+      valorCatastralTotal: propiedad?.valorCatastralTotal || "",
+      valorCatastralSuelo: propiedad?.valorCatastralSuelo || "",
+      valorCatastralConstruccion: propiedad?.valorCatastralConstruccion || "",
+      notas: propiedad?.notas || "",
+    });
+  }, [propiedad, clienteId, form]);
+
+  const saveMutation = useMutation({
     mutationFn: async (data: InsertPropiedad) => {
+      if (isEditMode) {
+        return await apiRequest("PUT", `/api/propiedades/${propiedad.idPropiedad}`, data);
+      }
       return await apiRequest("POST", `/api/clientes/${clienteId}/propiedades`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clientes', clienteId, 'propiedades'] });
       queryClient.invalidateQueries({ queryKey: ['/api/clientes'] });
+      if (isEditMode) {
+        queryClient.invalidateQueries({ queryKey: ['/api/propiedades', propiedad.idPropiedad] });
+      }
       toast({
-        title: "Propiedad creada",
-        description: "La propiedad ha sido añadida exitosamente.",
+        title: isEditMode ? "Propiedad actualizada" : "Propiedad creada",
+        description: isEditMode
+          ? "La propiedad ha sido actualizada exitosamente."
+          : "La propiedad ha sido añadida exitosamente.",
       });
       form.reset();
       onOpenChange(false);
@@ -88,23 +119,27 @@ export function NuevaPropiedadDialog({ open, onOpenChange, clienteId, clienteNom
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "No se pudo crear la propiedad. Verifica que la referencia catastral sea única.",
+        description: error.message || `No se pudo ${isEditMode ? 'actualizar' : 'crear'} la propiedad. Verifica que la referencia catastral sea única.`,
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: InsertPropiedad) => {
-    createMutation.mutate(data);
+    saveMutation.mutate(data);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Nueva Propiedad</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">
+            {isEditMode ? "Editar Propiedad" : "Nueva Propiedad"}
+          </DialogTitle>
           <DialogDescription>
-            Agregar propiedad en España para <span className="font-semibold">{clienteNombre}</span>
+            {isEditMode
+              ? `Actualizar información de la propiedad de ${clienteNombre}`
+              : `Agregar propiedad en España para ${clienteNombre}`}
           </DialogDescription>
         </DialogHeader>
 
@@ -420,7 +455,7 @@ export function NuevaPropiedadDialog({ open, onOpenChange, clienteId, clienteNom
                   onOpenChange(false);
                 }}
                 className="flex-1 rounded-lg h-11"
-                disabled={createMutation.isPending}
+                disabled={saveMutation.isPending}
                 data-testid="button-cancelar-propiedad"
               >
                 Cancelar
@@ -428,13 +463,13 @@ export function NuevaPropiedadDialog({ open, onOpenChange, clienteId, clienteNom
               <Button
                 type="submit"
                 className="flex-1 rounded-lg h-11"
-                disabled={createMutation.isPending}
+                disabled={saveMutation.isPending}
                 data-testid="button-guardar-propiedad"
               >
-                {createMutation.isPending && (
+                {saveMutation.isPending && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 )}
-                Guardar Propiedad
+                {isEditMode ? "Actualizar Propiedad" : "Guardar Propiedad"}
               </Button>
             </div>
           </form>

@@ -1,7 +1,8 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { insertClienteSchema, type InsertCliente } from "@shared/schema";
+import { insertClienteSchema, type InsertCliente, clientes } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -27,34 +28,59 @@ import { Loader2 } from "lucide-react";
 interface NuevoClienteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  cliente?: Cliente;
 }
 
-export function NuevoClienteDialog({ open, onOpenChange }: NuevoClienteDialogProps) {
+type Cliente = typeof clientes.$inferSelect;
+
+export function NuevoClienteDialog({ open, onOpenChange, cliente }: NuevoClienteDialogProps) {
   const { toast } = useToast();
+  const isEditMode = !!cliente;
 
   const form = useForm<InsertCliente>({
     resolver: zodResolver(insertClienteSchema),
     defaultValues: {
-      nie: "",
-      nombre: "",
-      apellidos: "",
-      email: "",
-      telefono: "",
-      ciudadPolonia: "",
-      direccionPolonia: "",
-      notas: "",
+      nie: cliente?.nie || "",
+      nombre: cliente?.nombre || "",
+      apellidos: cliente?.apellidos || "",
+      email: cliente?.email || "",
+      telefono: cliente?.telefono || "",
+      ciudadPolonia: cliente?.ciudadPolonia || "",
+      direccionPolonia: cliente?.direccionPolonia || "",
+      notas: cliente?.notas || "",
     },
   });
 
-  const createMutation = useMutation({
+  useEffect(() => {
+    form.reset({
+      nie: cliente?.nie || "",
+      nombre: cliente?.nombre || "",
+      apellidos: cliente?.apellidos || "",
+      email: cliente?.email || "",
+      telefono: cliente?.telefono || "",
+      ciudadPolonia: cliente?.ciudadPolonia || "",
+      direccionPolonia: cliente?.direccionPolonia || "",
+      notas: cliente?.notas || "",
+    });
+  }, [cliente, form]);
+
+  const saveMutation = useMutation({
     mutationFn: async (data: InsertCliente) => {
+      if (isEditMode) {
+        return await apiRequest("PUT", `/api/clientes/${cliente.idCliente}`, data);
+      }
       return await apiRequest("POST", "/api/clientes", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clientes'] });
+      if (isEditMode) {
+        queryClient.invalidateQueries({ queryKey: ['/api/clientes', cliente.idCliente] });
+      }
       toast({
-        title: "Cliente creado",
-        description: "El cliente ha sido creado exitosamente.",
+        title: isEditMode ? "Cliente actualizado" : "Cliente creado",
+        description: isEditMode 
+          ? "El cliente ha sido actualizado exitosamente."
+          : "El cliente ha sido creado exitosamente.",
       });
       form.reset();
       onOpenChange(false);
@@ -62,23 +88,27 @@ export function NuevoClienteDialog({ open, onOpenChange }: NuevoClienteDialogPro
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "No se pudo crear el cliente. Verifica que el NIE y email sean únicos.",
+        description: error.message || `No se pudo ${isEditMode ? 'actualizar' : 'crear'} el cliente. Verifica que el NIE y email sean únicos.`,
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: InsertCliente) => {
-    createMutation.mutate(data);
+    saveMutation.mutate(data);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Nuevo Cliente</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">
+            {isEditMode ? "Editar Cliente" : "Nuevo Cliente"}
+          </DialogTitle>
           <DialogDescription>
-            Agrega un nuevo cliente polaco para gestionar sus propiedades en España
+            {isEditMode 
+              ? "Actualiza la información del cliente" 
+              : "Agrega un nuevo cliente polaco para gestionar sus propiedades en España"}
           </DialogDescription>
         </DialogHeader>
 
@@ -268,7 +298,7 @@ export function NuevoClienteDialog({ open, onOpenChange }: NuevoClienteDialogPro
                   onOpenChange(false);
                 }}
                 className="flex-1 rounded-lg h-11"
-                disabled={createMutation.isPending}
+                disabled={saveMutation.isPending}
                 data-testid="button-cancelar"
               >
                 Cancelar
@@ -276,13 +306,13 @@ export function NuevoClienteDialog({ open, onOpenChange }: NuevoClienteDialogPro
               <Button
                 type="submit"
                 className="flex-1 rounded-lg h-11"
-                disabled={createMutation.isPending}
+                disabled={saveMutation.isPending}
                 data-testid="button-guardar-cliente"
               >
-                {createMutation.isPending && (
+                {saveMutation.isPending && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 )}
-                Guardar Cliente
+                {isEditMode ? "Actualizar Cliente" : "Guardar Cliente"}
               </Button>
             </div>
           </form>
