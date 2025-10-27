@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
-import { ChevronLeft, Home, MapPin, Calendar, DollarSign, FileText, Users, Edit } from "lucide-react";
+import { ChevronLeft, Home, MapPin, Calendar, DollarSign, FileText, Users, Edit, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,13 +10,18 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { NuevaPropiedadDialog } from "@/components/nueva-propiedad-dialog";
+import { useToast } from "@/hooks/use-toast";
 import type { Propiedad, Cliente, Copropietario } from "@shared/schema";
+import type { Modelo210ImputacionResult } from "@shared/modelo210-calc";
+import { formatEuros, formatPercentage } from "@shared/modelo210-calc";
 
 export default function PropiedadDetalle() {
   const params = useParams();
   const [, navigate] = useLocation();
   const propiedadId = parseInt(params.id || "0");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [calculoModelo, setCalculoModelo] = useState<Modelo210ImputacionResult | null>(null);
+  const { toast } = useToast();
 
   const { data: propiedad, isLoading: loadingPropiedad } = useQuery<Propiedad>({
     queryKey: ['/api/propiedades', propiedadId],
@@ -27,8 +32,35 @@ export default function PropiedadDetalle() {
     enabled: !!propiedad?.idCliente,
   });
 
-  const { data: copropietarios, isLoading: loadingCopropietarios } = useQuery<Array<Copropietario & { cliente: Cliente }>>({
+  const { data: copropietarios, isLoading: loadingCopropietarios} = useQuery<Array<Copropietario & { cliente: Cliente }>>({
     queryKey: ['/api/propiedades', propiedadId, 'copropietarios'],
+  });
+
+  const calcularModelo210Mutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/propiedades/${propiedadId}/modelo210`, {
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Error al calcular Modelo 210');
+      }
+      return res.json();
+    },
+    onSuccess: (data: Modelo210ImputacionResult) => {
+      setCalculoModelo(data);
+      toast({
+        title: "Modelo 210 calculado",
+        description: "El cálculo se ha realizado exitosamente.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error al calcular",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const getTipoDeclaracionColor = (tipo: string) => {
@@ -334,13 +366,77 @@ export default function PropiedadDetalle() {
               )}
             </Card>
 
-            <Button 
-              variant="default" 
-              className="w-full rounded-lg h-12 text-base font-semibold shadow-md"
-              data-testid="button-calcular-modelo"
-            >
-              Calcular Modelo 210
-            </Button>
+            {propiedad.tipoDeclaracion === 'imputacion' && (
+              <>
+                <Button 
+                  onClick={() => calcularModelo210Mutation.mutate()}
+                  disabled={calcularModelo210Mutation.isPending || !propiedad.valorCatastralTotal}
+                  variant="default" 
+                  className="w-full rounded-lg h-12 text-base font-semibold shadow-md"
+                  data-testid="button-calcular-modelo"
+                >
+                  {calcularModelo210Mutation.isPending ? (
+                    <>Calculando...</>
+                  ) : (
+                    <>
+                      <Calculator className="w-5 h-5 mr-2" />
+                      Calcular Modelo 210
+                    </>
+                  )}
+                </Button>
+
+                {calculoModelo && (
+                  <Card className="p-6 rounded-2xl" data-testid="card-resultado-modelo210">
+                    <h2 className="text-xl font-semibold text-card-foreground mb-4 flex items-center gap-2">
+                      <Calculator className="w-5 h-5 text-primary" />
+                      Resultado Modelo 210
+                    </h2>
+                    
+                    <div className="space-y-4">
+                      <div className="p-4 bg-primary/10 rounded-lg border-2 border-primary">
+                        <p className="text-sm text-muted-foreground mb-1">Importe a Pagar</p>
+                        <p className="text-3xl font-bold text-primary" data-testid="text-importe-pagar">
+                          {formatEuros(calculoModelo.importeAPagar)}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-3 bg-muted/30 rounded-lg">
+                          <p className="text-xs text-muted-foreground mb-1">Base Imponible</p>
+                          <p className="text-lg font-semibold text-card-foreground" data-testid="text-base-imponible">
+                            {formatEuros(calculoModelo.baseImponible)}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-muted/30 rounded-lg">
+                          <p className="text-xs text-muted-foreground mb-1">Tipo Impositivo</p>
+                          <p className="text-lg font-semibold text-card-foreground" data-testid="text-tipo-impositivo">
+                            {calculoModelo.tipoImpositivo}%
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-border">
+                        <p className="text-sm font-semibold text-card-foreground mb-3">Detalles del Cálculo</p>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Valor Catastral:</span>
+                            <span className="font-medium">{formatEuros(calculoModelo.detalles.valorCatastral)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">% Imputación:</span>
+                            <span className="font-medium">{formatPercentage(calculoModelo.detalles.porcentajeImputacion)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">% Propiedad:</span>
+                            <span className="font-medium">{formatPercentage(calculoModelo.detalles.porcentajePropiedad)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+              </>
+            )}
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertClienteSchema, insertPropiedadSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
+import { calcularModelo210Imputacion } from "@shared/modelo210-calc";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/clientes', async (req, res) => {
@@ -258,6 +259,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Error al eliminar copropietario:', error);
       res.status(500).json({ message: 'Error al eliminar copropietario' });
+    }
+  });
+
+  app.get('/api/propiedades/:id/modelo210', async (req, res) => {
+    try {
+      const propiedadId = parseInt(req.params.id);
+      
+      const propiedad = await storage.getPropiedad(propiedadId);
+      if (!propiedad) {
+        return res.status(404).json({ message: 'Propiedad no encontrada' });
+      }
+
+      if (propiedad.tipoDeclaracion !== 'imputacion') {
+        return res.status(400).json({ 
+          message: 'El cálculo automático solo está disponible para propiedades de imputación' 
+        });
+      }
+
+      // Validar datos requeridos
+      if (!propiedad.valorCatastralTotal || propiedad.valorCatastralTotal.trim() === '') {
+        return res.status(400).json({ 
+          message: 'La propiedad debe tener un valor catastral total para calcular el Modelo 210' 
+        });
+      }
+
+      if (!propiedad.fechaCompra || propiedad.fechaCompra.trim() === '') {
+        return res.status(400).json({ 
+          message: 'La propiedad debe tener una fecha de compra para calcular el Modelo 210' 
+        });
+      }
+
+      // Obtener copropietarios para calcular el porcentaje de propiedad
+      const copropietarios = await storage.getCopropietariosByPropiedad(propiedadId);
+      let porcentajePropiedad = 100;
+      
+      if (copropietarios.length > 0) {
+        // Si hay copropietarios, buscar el porcentaje del propietario principal
+        const copropietarioPrincipal = copropietarios.find(c => c.idCliente === propiedad.idCliente);
+        if (copropietarioPrincipal && copropietarioPrincipal.porcentaje) {
+          const porcentajeStr = copropietarioPrincipal.porcentaje;
+          const porcentajeParsed = parseFloat(porcentajeStr);
+          if (!isNaN(porcentajeParsed) && porcentajeParsed > 0 && porcentajeParsed <= 100) {
+            porcentajePropiedad = porcentajeParsed;
+          }
+        }
+      }
+
+      const resultado = calcularModelo210Imputacion({
+        valorCatastralTotal: propiedad.valorCatastralTotal,
+        fechaCompra: propiedad.fechaCompra,
+        tipoPropiedad: propiedad.tipo as any,
+        porcentajePropiedad,
+      });
+
+      res.json(resultado);
+    } catch (error: any) {
+      console.error('Error al calcular Modelo 210:', error);
+      
+      // Si es un error de validación, devolver 400
+      if (error.message && (
+        error.message.includes('inválido') || 
+        error.message.includes('faltante') ||
+        error.message.includes('obligatoria')
+      )) {
+        return res.status(400).json({ message: error.message });
+      }
+      
+      res.status(500).json({ message: 'Error al calcular Modelo 210' });
     }
   });
 
