@@ -6,6 +6,9 @@ import {
   contratosAlquiler,
   pagosAlquiler,
   documentosAdquisicion,
+  gastos,
+  rentasNegativas,
+  compensacionesRentasNegativas,
   type Cliente, 
   type InsertCliente,
   type Propiedad,
@@ -20,6 +23,12 @@ import {
   type InsertPagoAlquiler,
   type DocumentoAdquisicion,
   type InsertDocumentoAdquisicion,
+  type Gasto,
+  type InsertGasto,
+  type RentaNegativa,
+  type InsertRentaNegativa,
+  type CompensacionRentaNegativa,
+  type InsertCompensacionRentaNegativa,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql, or, ilike } from "drizzle-orm";
@@ -70,6 +79,23 @@ export interface IStorage {
     valorAmortizable: number, 
     amortizacionAnual: number
   ): Promise<Propiedad | undefined>;
+
+  getGasto(id: number): Promise<Gasto | undefined>;
+  getGastosByPropiedad(propiedadId: number, ano?: number, soloValidados?: boolean): Promise<Gasto[]>;
+  createGasto(gasto: InsertGasto): Promise<Gasto>;
+  updateGasto(id: number, gasto: Partial<InsertGasto>): Promise<Gasto | undefined>;
+  deleteGasto(id: number): Promise<void>;
+  validarGasto(id: number): Promise<Gasto | undefined>;
+
+  getRentaNegativa(id: number): Promise<RentaNegativa | undefined>;
+  getRentasNegativasByCliente(clienteId: number, estado?: string): Promise<RentaNegativa[]>;
+  getRentasNegativasByPropiedad(propiedadId: number): Promise<RentaNegativa[]>;
+  createRentaNegativa(renta: InsertRentaNegativa): Promise<RentaNegativa>;
+  updateRentaNegativa(id: number, renta: Partial<InsertRentaNegativa>): Promise<RentaNegativa | undefined>;
+
+  createCompensacion(compensacion: InsertCompensacionRentaNegativa): Promise<CompensacionRentaNegativa>;
+  getCompensacionesByRentaNegativa(rentaNegativaId: number): Promise<CompensacionRentaNegativa[]>;
+  getCompensacionesByDeclaracion(declaracionId: number): Promise<CompensacionRentaNegativa[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -424,6 +450,142 @@ export class DatabaseStorage implements IStorage {
       .where(eq(propiedades.idPropiedad, propiedadId))
       .returning();
     return propiedad || undefined;
+  }
+
+  async getGasto(id: number): Promise<Gasto | undefined> {
+    const [gasto] = await db.select().from(gastos).where(eq(gastos.idGasto, id));
+    return gasto || undefined;
+  }
+
+  async getGastosByPropiedad(propiedadId: number, ano?: number, soloValidados: boolean = false): Promise<Gasto[]> {
+    let whereConditions = eq(gastos.idPropiedad, propiedadId);
+
+    if (ano && soloValidados) {
+      whereConditions = and(
+        eq(gastos.idPropiedad, propiedadId),
+        eq(sql`EXTRACT(YEAR FROM ${gastos.fechaGasto})`, ano),
+        eq(gastos.validado, true)
+      ) as any;
+    } else if (ano) {
+      whereConditions = and(
+        eq(gastos.idPropiedad, propiedadId),
+        eq(sql`EXTRACT(YEAR FROM ${gastos.fechaGasto})`, ano)
+      ) as any;
+    } else if (soloValidados) {
+      whereConditions = and(
+        eq(gastos.idPropiedad, propiedadId),
+        eq(gastos.validado, true)
+      ) as any;
+    }
+
+    return await db
+      .select()
+      .from(gastos)
+      .where(whereConditions)
+      .orderBy(sql`${gastos.fechaGasto} DESC`);
+  }
+
+  async createGasto(insertGasto: InsertGasto): Promise<Gasto> {
+    const [gasto] = await db
+      .insert(gastos)
+      .values(insertGasto)
+      .returning();
+    return gasto;
+  }
+
+  async updateGasto(id: number, insertGasto: Partial<InsertGasto>): Promise<Gasto | undefined> {
+    const [gasto] = await db
+      .update(gastos)
+      .set(insertGasto)
+      .where(eq(gastos.idGasto, id))
+      .returning();
+    return gasto || undefined;
+  }
+
+  async deleteGasto(id: number): Promise<void> {
+    await db
+      .delete(gastos)
+      .where(eq(gastos.idGasto, id));
+  }
+
+  async validarGasto(id: number): Promise<Gasto | undefined> {
+    const [gasto] = await db
+      .update(gastos)
+      .set({ 
+        validado: true,
+        fechaValidacion: sql`NOW()`
+      })
+      .where(eq(gastos.idGasto, id))
+      .returning();
+    return gasto || undefined;
+  }
+
+  async getRentaNegativa(id: number): Promise<RentaNegativa | undefined> {
+    const [renta] = await db.select().from(rentasNegativas).where(eq(rentasNegativas.idRentaNegativa, id));
+    return renta || undefined;
+  }
+
+  async getRentasNegativasByCliente(clienteId: number, estado?: string): Promise<RentaNegativa[]> {
+    const whereConditions = estado
+      ? and(
+          eq(rentasNegativas.idCliente, clienteId),
+          eq(rentasNegativas.estado, estado)
+        )
+      : eq(rentasNegativas.idCliente, clienteId);
+
+    return await db
+      .select()
+      .from(rentasNegativas)
+      .where(whereConditions)
+      .orderBy(sql`${rentasNegativas.anoOrigen} DESC`);
+  }
+
+  async getRentasNegativasByPropiedad(propiedadId: number): Promise<RentaNegativa[]> {
+    return await db
+      .select()
+      .from(rentasNegativas)
+      .where(eq(rentasNegativas.idPropiedad, propiedadId))
+      .orderBy(sql`${rentasNegativas.anoOrigen} DESC`);
+  }
+
+  async createRentaNegativa(insertRenta: InsertRentaNegativa): Promise<RentaNegativa> {
+    const [renta] = await db
+      .insert(rentasNegativas)
+      .values(insertRenta)
+      .returning();
+    return renta;
+  }
+
+  async updateRentaNegativa(id: number, insertRenta: Partial<InsertRentaNegativa>): Promise<RentaNegativa | undefined> {
+    const [renta] = await db
+      .update(rentasNegativas)
+      .set(insertRenta)
+      .where(eq(rentasNegativas.idRentaNegativa, id))
+      .returning();
+    return renta || undefined;
+  }
+
+  async createCompensacion(insertCompensacion: InsertCompensacionRentaNegativa): Promise<CompensacionRentaNegativa> {
+    const [compensacion] = await db
+      .insert(compensacionesRentasNegativas)
+      .values(insertCompensacion)
+      .returning();
+    return compensacion;
+  }
+
+  async getCompensacionesByRentaNegativa(rentaNegativaId: number): Promise<CompensacionRentaNegativa[]> {
+    return await db
+      .select()
+      .from(compensacionesRentasNegativas)
+      .where(eq(compensacionesRentasNegativas.idRentaNegativa, rentaNegativaId))
+      .orderBy(sql`${compensacionesRentasNegativas.fechaCompensacion} DESC`);
+  }
+
+  async getCompensacionesByDeclaracion(declaracionId: number): Promise<CompensacionRentaNegativa[]> {
+    return await db
+      .select()
+      .from(compensacionesRentasNegativas)
+      .where(eq(compensacionesRentasNegativas.idDeclaracion, declaracionId));
   }
 }
 
