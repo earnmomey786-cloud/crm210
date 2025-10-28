@@ -22,6 +22,7 @@ Preferred communication style: Simple, everyday language.
 - Implemented complete API endpoints: POST/GET /api/propiedades/:id/gastos, POST /api/propiedades/:id/calcular-gastos-deducibles, POST /api/propiedades/:id/verificar-renta-negativa, GET /api/clientes/:id/rentas-negativas-pendientes, POST /api/declaraciones/:id/aplicar-compensacion
 - Backend functionality complete and operational for expense management and negative rent compensation
 - Expense types: proportional (IBI, community, insurance, mortgage interest, utilities, maintenance), 100% deductible (repairs, gestoría, agency, lawyer, advertising)
+- **Bug Fix**: Updated `calcularGastosDeducibles` to accept `idPropiedad` as explicit parameter, preventing incorrect property ID (0) when no expenses exist
 
 **October 28, 2025 - Fase 1D: Amortization Calculation**
 - Created `documentos_adquisicion` table to track all acquisition costs (purchase price, notary fees, registry fees, ITP, agency fees, improvements)
