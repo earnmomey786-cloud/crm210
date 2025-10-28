@@ -10,6 +10,21 @@ The system is built as a full-stack TypeScript application with a React frontend
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+**October 28, 2025 - Soft Pastel Design Implementation**
+- Applied exact soft pastel color scheme from reference design
+- Background: Soft grayish-blue (#c5d0db, hsl(210 18% 82%))
+- Cards: Very light gray-blue (hsl(210 20% 96%))
+- Badge colors matching reference:
+  - Imputación: Soft pink (hsl(350 30% 85%))
+  - Alquiler: Soft mint green (hsl(140 30% 80%))
+  - Mixta: Soft yellow/cream (hsl(45 40% 85%))
+- Rounded corners: 16px (1rem) for all cards and containers
+- Shadows: Very subtle (3-12% opacity) for gentle depth
+- Typography: Inter font with medium gray-blue text
+- Overall aesthetic: Calm, friendly, approachable professional design
+
 ## System Architecture
 
 ### Frontend Architecture

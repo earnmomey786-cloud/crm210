@@ -2,108 +2,108 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE - Soft Pastel Design */
+/* LIGHT MODE - Exact Pastel Design from Reference */
 :root {
-  --button-outline: rgba(0,0,0, .08);
-  --badge-outline: rgba(0,0,0, .04);
+  --button-outline: rgba(0,0,0, .06);
+  --badge-outline: rgba(0,0,0, .03);
 
   /* Automatic computation of border around primary / danger buttons */
-  --opaque-button-border-intensity: -6; /* In terms of percentages */
+  --opaque-button-border-intensity: -5; /* In terms of percentages */
 
   /* Backgrounds applied on top of other backgrounds when hovered/active */
-  --elevate-1: rgba(0,0,0, .02);
-  --elevate-2: rgba(0,0,0, .05);
+  --elevate-1: rgba(0,0,0, .015);
+  --elevate-2: rgba(0,0,0, .04);
 
-  /* Soft grayish background - like in the reference image */
-  --background: 220 20% 97%;
+  /* Grayish-blue background exactly like reference (#c5d0db area) */
+  --background: 210 18% 82%;
 
-  /* Softer text color for friendlier feel */
-  --foreground: 220 15% 35%;
+  /* Medium gray-blue text */
+  --foreground: 215 12% 35%;
 
-  /* Very light borders */
-  --border: 220 15% 90%;
+  /* Light borders with blue-gray tint */
+  --border: 210 15% 75%;
 
-  /* Pure white cards for contrast against soft background */
-  --card: 0 0% 100%;
+  /* Very light gray-blue cards (almost white but with subtle tint) */
+  --card: 210 20% 96%;
 
-  --card-foreground: 220 15% 30%;
+  --card-foreground: 215 12% 32%;
 
   /* Subtle card borders */
-  --card-border: 220 12% 92%;
+  --card-border: 210 12% 88%;
 
-  /* Soft pastel sidebar */
-  --sidebar: 220 18% 96%;
+  /* Light sidebar matching card color */
+  --sidebar: 210 20% 96%;
 
-  --sidebar-foreground: 220 15% 32%;
+  --sidebar-foreground: 215 12% 35%;
 
-  --sidebar-border: 220 12% 89%;
+  --sidebar-border: 210 12% 86%;
 
-  /* Soft blue primary - pastel tone */
-  --sidebar-primary: 210 70% 75%;
+  /* Soft blue-gray primary (for selected states) */
+  --sidebar-primary: 210 20% 55%;
 
-  --sidebar-primary-foreground: 220 20% 20%;
+  --sidebar-primary-foreground: 0 0% 100%;
 
-  /* Lighter sidebar accent */
-  --sidebar-accent: 220 20% 92%;
+  /* Very light accent for sidebar */
+  --sidebar-accent: 210 15% 90%;
 
-  --sidebar-accent-foreground: 220 15% 35%;
+  --sidebar-accent-foreground: 215 12% 38%;
 
-  --sidebar-ring: 210 70% 75%;
+  --sidebar-ring: 210 20% 55%;
 
-  --popover: 0 0% 100%;
+  --popover: 210 20% 96%;
 
-  --popover-foreground: 220 15% 32%;
+  --popover-foreground: 215 12% 35%;
 
-  --popover-border: 220 12% 90%;
+  --popover-border: 210 12% 86%;
 
-  /* Soft pastel blue primary */
-  --primary: 210 65% 70%;
+  /* Soft blue-gray primary button */
+  --primary: 210 22% 58%;
 
   --primary-foreground: 0 0% 100%;
 
-  /* Soft pastel secondary */
-  --secondary: 220 20% 92%;
+  /* Light gray-blue secondary */
+  --secondary: 210 15% 88%;
 
-  --secondary-foreground: 220 15% 38%;
+  --secondary-foreground: 215 12% 40%;
 
-  /* Very light muted backgrounds */
-  --muted: 220 18% 95%;
+  /* Very light muted */
+  --muted: 210 15% 90%;
 
-  --muted-foreground: 220 10% 52%;
+  --muted-foreground: 215 8% 55%;
 
-  /* Soft mint green accent */
-  --accent: 150 35% 88%;
+  /* Soft mint green accent (like "25 days left" badge) */
+  --accent: 140 25% 85%;
 
-  --accent-foreground: 150 40% 28%;
+  --accent-foreground: 140 30% 30%;
 
-  /* Soft pink for destructive (less harsh) */
-  --destructive: 350 55% 65%;
+  /* Soft pink for destructive (like "5 days left" badge) */
+  --destructive: 350 25% 82%;
 
-  --destructive-foreground: 0 0% 100%;
+  --destructive-foreground: 350 40% 35%;
 
-  /* Soft input borders */
-  --input: 220 12% 80%;
-  --ring: 210 65% 70%;
+  /* Input borders */
+  --input: 210 12% 75%;
+  --ring: 210 22% 58%;
   
-  /* Pastel chart colors */
-  --chart-1: 210 60% 75%;  /* Soft blue */
-  --chart-2: 150 45% 75%;  /* Soft mint */
-  --chart-3: 340 50% 80%;  /* Soft pink */
-  --chart-4: 45 60% 80%;   /* Soft yellow/cream */
-  --chart-5: 270 40% 78%;  /* Soft lavender */
+  /* Pastel badge/chart colors matching reference */
+  --chart-1: 210 20% 65%;  /* Soft blue-gray (for progress bars) */
+  --chart-2: 140 30% 80%;  /* Soft mint green (25 days badge) */
+  --chart-3: 350 30% 85%;  /* Soft pink (5 days badge) */
+  --chart-4: 45 40% 85%;   /* Soft yellow/cream (14 days badge) */
+  --chart-5: 270 20% 80%;  /* Soft lavender */
 
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
-  --radius: .75rem; /* 12px */
-  --shadow-2xs: 0px 1px 2px 0px hsl(210 12% 16% / 0.05);
-  --shadow-xs: 0px 1px 3px 0px hsl(210 12% 16% / 0.08);
-  --shadow-sm: 0px 2px 4px -1px hsl(210 12% 16% / 0.06), 0px 1px 2px -1px hsl(210 12% 16% / 0.08);
-  --shadow: 0px 4px 6px -1px hsl(210 12% 16% / 0.08), 0px 2px 4px -2px hsl(210 12% 16% / 0.05);
-  --shadow-md: 0px 6px 12px -2px hsl(210 12% 16% / 0.10), 0px 3px 6px -3px hsl(210 12% 16% / 0.08);
-  --shadow-lg: 0px 10px 20px -4px hsl(210 12% 16% / 0.12), 0px 4px 8px -4px hsl(210 12% 16% / 0.08);
-  --shadow-xl: 0px 20px 30px -6px hsl(210 12% 16% / 0.14), 0px 8px 16px -6px hsl(210 12% 16% / 0.10);
-  --shadow-2xl: 0px 30px 50px -10px hsl(210 12% 16% / 0.20);
+  --radius: 1rem; /* 16px - more rounded like reference */
+  --shadow-2xs: 0px 1px 2px 0px hsl(210 15% 20% / 0.03);
+  --shadow-xs: 0px 1px 3px 0px hsl(210 15% 20% / 0.04);
+  --shadow-sm: 0px 2px 4px -1px hsl(210 15% 20% / 0.04), 0px 1px 2px -1px hsl(210 15% 20% / 0.05);
+  --shadow: 0px 4px 8px -2px hsl(210 15% 20% / 0.06), 0px 2px 4px -2px hsl(210 15% 20% / 0.04);
+  --shadow-md: 0px 6px 12px -2px hsl(210 15% 20% / 0.07), 0px 3px 6px -3px hsl(210 15% 20% / 0.05);
+  --shadow-lg: 0px 10px 20px -4px hsl(210 15% 20% / 0.08), 0px 4px 8px -4px hsl(210 15% 20% / 0.05);
+  --shadow-xl: 0px 20px 30px -6px hsl(210 15% 20% / 0.09), 0px 8px 16px -6px hsl(210 15% 20% / 0.06);
+  --shadow-2xl: 0px 30px 50px -10px hsl(210 15% 20% / 0.12);
   --tracking-normal: -0.011em;
   --spacing: 0.25rem;
 

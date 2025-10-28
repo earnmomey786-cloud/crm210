@@ -2,13 +2,21 @@
 
 ## Design Approach
 
-**Reference-Based with Specific Aesthetic Requirements**
+**Exact Reference Implementation**
 
-Following the provided screenshot inspiration, this design will feature:
-- Soft pastel color palette (light blue, mint green, soft pink, cream)
-- Rounded cards with gentle shadows
-- Clean, modern typography with generous spacing
-- Friendly, approachable aesthetic for a professional business application
+Based on the provided reference screenshots, this design features:
+- **Background**: Soft grayish-blue (#c5d0db) creating a calm, professional atmosphere
+- **Cards**: Very light gray-blue (almost white) with subtle tint for depth
+- **Pastel Accents**:
+  - Soft pink (#e8d4d8) for urgent/warning states
+  - Soft mint green (#d4e8d8) for success/progress states  
+  - Soft yellow/cream (#f5f0d8) for neutral/info states
+  - Soft blue-gray for primary actions and selected states
+- **Typography**: Inter font family, medium gray-blue text (not pure black)
+- **Borders**: Very light, barely visible borders with blue-gray tint
+- **Shadows**: Extremely subtle, soft shadows (opacity 3-12%)
+- **Rounded Corners**: 16px (1rem) for cards and containers
+- **Overall Feel**: Calm, soft, approachable, professional but friendly
 
 ## Typography
 

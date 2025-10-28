@@ -66,13 +66,16 @@ export default function PropiedadDetalle() {
   const getTipoDeclaracionColor = (tipo: string) => {
     switch (tipo) {
       case 'imputacion':
-        return 'bg-blue-100 text-blue-700 border-blue-200';
+        // Soft pink pastel
+        return 'bg-[hsl(var(--chart-3))] text-[hsl(var(--destructive-foreground))]';
       case 'alquiler':
-        return 'bg-green-100 text-green-700 border-green-200';
+        // Soft mint green pastel
+        return 'bg-[hsl(var(--chart-2))] text-[hsl(var(--accent-foreground))]';
       case 'mixta':
-        return 'bg-purple-100 text-purple-700 border-purple-200';
+        // Soft yellow/cream pastel
+        return 'bg-[hsl(var(--chart-4))] text-[hsl(215_12%_40%)]';
       default:
-        return 'bg-gray-100 text-gray-700 border-gray-200';
+        return 'bg-muted text-muted-foreground';
     }
   };
 
