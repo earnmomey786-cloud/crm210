@@ -5,6 +5,7 @@ import {
   declaraciones210,
   contratosAlquiler,
   pagosAlquiler,
+  documentosAdquisicion,
   type Cliente, 
   type InsertCliente,
   type Propiedad,
@@ -17,6 +18,8 @@ import {
   type InsertContratoAlquiler,
   type PagoAlquiler,
   type InsertPagoAlquiler,
+  type DocumentoAdquisicion,
+  type InsertDocumentoAdquisicion,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql, or, ilike } from "drizzle-orm";
@@ -53,6 +56,20 @@ export interface IStorage {
   getPagosByContrato(contratoId: number, ano?: number): Promise<PagoAlquiler[]>;
   createPago(pago: InsertPagoAlquiler): Promise<PagoAlquiler>;
   updatePago(id: number, pago: Partial<InsertPagoAlquiler>): Promise<PagoAlquiler | undefined>;
+
+  getDocumentoAdquisicion(id: number): Promise<DocumentoAdquisicion | undefined>;
+  getDocumentosByPropiedad(propiedadId: number, soloValidados?: boolean): Promise<DocumentoAdquisicion[]>;
+  createDocumentos(propiedadId: number, documentos: InsertDocumentoAdquisicion[]): Promise<DocumentoAdquisicion[]>;
+  updateDocumento(id: number, documento: Partial<InsertDocumentoAdquisicion>): Promise<DocumentoAdquisicion | undefined>;
+  validarDocumento(id: number): Promise<DocumentoAdquisicion | undefined>;
+  deleteDocumento(id: number): Promise<void>;
+  updatePropiedadAmortizacion(
+    propiedadId: number, 
+    valorTotal: number, 
+    porcentajeConstruccion: number, 
+    valorAmortizable: number, 
+    amortizacionAnual: number
+  ): Promise<Propiedad | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -325,6 +342,88 @@ export class DatabaseStorage implements IStorage {
       .where(eq(pagosAlquiler.idPago, id))
       .returning();
     return pago || undefined;
+  }
+
+  async getDocumentoAdquisicion(id: number): Promise<DocumentoAdquisicion | undefined> {
+    const [documento] = await db.select().from(documentosAdquisicion).where(eq(documentosAdquisicion.idDocumento, id));
+    return documento || undefined;
+  }
+
+  async getDocumentosByPropiedad(propiedadId: number, soloValidados: boolean = false): Promise<DocumentoAdquisicion[]> {
+    const whereConditions = soloValidados
+      ? and(
+          eq(documentosAdquisicion.idPropiedad, propiedadId),
+          eq(documentosAdquisicion.validado, true)
+        )
+      : eq(documentosAdquisicion.idPropiedad, propiedadId);
+
+    return await db
+      .select()
+      .from(documentosAdquisicion)
+      .where(whereConditions)
+      .orderBy(sql`${documentosAdquisicion.fechaDocumento} DESC`);
+  }
+
+  async createDocumentos(propiedadId: number, documentos: InsertDocumentoAdquisicion[]): Promise<DocumentoAdquisicion[]> {
+    const documentosConPropiedad = documentos.map(doc => ({
+      ...doc,
+      idPropiedad: propiedadId,
+      validado: true
+    }));
+
+    const result = await db
+      .insert(documentosAdquisicion)
+      .values(documentosConPropiedad)
+      .returning();
+    
+    return result;
+  }
+
+  async updateDocumento(id: number, insertDocumento: Partial<InsertDocumentoAdquisicion>): Promise<DocumentoAdquisicion | undefined> {
+    const [documento] = await db
+      .update(documentosAdquisicion)
+      .set(insertDocumento)
+      .where(eq(documentosAdquisicion.idDocumento, id))
+      .returning();
+    return documento || undefined;
+  }
+
+  async validarDocumento(id: number): Promise<DocumentoAdquisicion | undefined> {
+    const [documento] = await db
+      .update(documentosAdquisicion)
+      .set({ 
+        validado: true,
+        fechaValidacion: sql`NOW()`
+      })
+      .where(eq(documentosAdquisicion.idDocumento, id))
+      .returning();
+    return documento || undefined;
+  }
+
+  async deleteDocumento(id: number): Promise<void> {
+    await db
+      .delete(documentosAdquisicion)
+      .where(eq(documentosAdquisicion.idDocumento, id));
+  }
+
+  async updatePropiedadAmortizacion(
+    propiedadId: number,
+    valorTotal: number,
+    porcentajeConstruccion: number,
+    valorAmortizable: number,
+    amortizacionAnual: number
+  ): Promise<Propiedad | undefined> {
+    const [propiedad] = await db
+      .update(propiedades)
+      .set({
+        valorTotalAdquisicion: valorTotal.toFixed(2),
+        porcentajeConstruccion: porcentajeConstruccion.toFixed(4),
+        valorAmortizable: valorAmortizable.toFixed(2),
+        amortizacionAnual: amortizacionAnual.toFixed(2)
+      })
+      .where(eq(propiedades.idPropiedad, propiedadId))
+      .returning();
+    return propiedad || undefined;
   }
 }
 
