@@ -34,6 +34,10 @@ export const propiedades = pgTable("propiedades", {
   valorCatastralTotal: decimal("valor_catastral_total", { precision: 12, scale: 2 }),
   valorCatastralSuelo: decimal("valor_catastral_suelo", { precision: 12, scale: 2 }),
   valorCatastralConstruccion: decimal("valor_catastral_construccion", { precision: 12, scale: 2 }),
+  valorTotalAdquisicion: decimal("valor_total_adquisicion", { precision: 12, scale: 2 }),
+  porcentajeConstruccion: decimal("porcentaje_construccion", { precision: 5, scale: 4 }),
+  valorAmortizable: decimal("valor_amortizable", { precision: 12, scale: 2 }),
+  amortizacionAnual: decimal("amortizacion_anual", { precision: 12, scale: 2 }),
   activa: boolean("activa").default(true).notNull(),
   fechaAlta: timestamp("fecha_alta").defaultNow().notNull(),
   notas: text("notas"),
@@ -68,6 +72,11 @@ export const declaraciones210 = pgTable("declaraciones_210", {
   ingresosAlquiler: decimal("ingresos_alquiler", { precision: 12, scale: 2 }),
   gastosDeducibles: decimal("gastos_deducibles", { precision: 12, scale: 2 }),
   amortizacion: decimal("amortizacion", { precision: 12, scale: 2 }),
+  valorTotalAdquisicion: decimal("valor_total_adquisicion", { precision: 12, scale: 2 }),
+  valorAmortizable: decimal("valor_amortizable", { precision: 12, scale: 2 }),
+  amortizacionAnualPropiedad: decimal("amortizacion_anual_propiedad", { precision: 12, scale: 2 }),
+  amortizacionProporcionalDias: decimal("amortizacion_proporcional_dias", { precision: 12, scale: 2 }),
+  amortizacionPropietario: decimal("amortizacion_propietario", { precision: 12, scale: 2 }),
   baseImponible: decimal("base_imponible", { precision: 12, scale: 2 }).notNull(),
   cuotaPagar: decimal("cuota_pagar", { precision: 12, scale: 2 }).notNull(),
   porcentajeParticipacion: decimal("porcentaje_participacion", { precision: 5, scale: 2 }).default('100.00').notNull(),
@@ -128,6 +137,23 @@ export const pagosAlquiler = pgTable("pagos_alquiler", {
   estadoIdx: index("idx_pago_estado").on(table.estado),
 }));
 
+export const documentosAdquisicion = pgTable("documentos_adquisicion", {
+  idDocumento: serial("id_documento").primaryKey(),
+  idPropiedad: integer("id_propiedad").notNull().references(() => propiedades.idPropiedad),
+  tipo: varchar("tipo", { length: 50 }).notNull(),
+  descripcion: varchar("descripcion", { length: 500 }).notNull(),
+  importe: decimal("importe", { precision: 12, scale: 2 }).notNull(),
+  fechaDocumento: date("fecha_documento").notNull(),
+  rutaArchivo: varchar("ruta_archivo", { length: 500 }),
+  validado: boolean("validado").default(false).notNull(),
+  fechaValidacion: timestamp("fecha_validacion"),
+  fechaAlta: timestamp("fecha_alta").defaultNow().notNull(),
+  usuarioAlta: varchar("usuario_alta", { length: 100 }),
+}, (table) => ({
+  propiedadIdx: index("idx_doc_adq_propiedad").on(table.idPropiedad),
+  tipoIdx: index("idx_doc_adq_tipo").on(table.tipo),
+}));
+
 export const clientesRelations = relations(clientes, ({ many }) => ({
   propiedades: many(propiedades),
   copropiedades: many(propiedadCopropietarios),
@@ -142,6 +168,7 @@ export const propiedadesRelations = relations(propiedades, ({ one, many }) => ({
   copropietarios: many(propiedadCopropietarios),
   declaraciones: many(declaraciones210),
   contratos: many(contratosAlquiler),
+  documentos: many(documentosAdquisicion),
 }));
 
 export const propiedadCopropietariosRelations = relations(propiedadCopropietarios, ({ one }) => ({
@@ -178,6 +205,13 @@ export const pagosAlquilerRelations = relations(pagosAlquiler, ({ one }) => ({
   contrato: one(contratosAlquiler, {
     fields: [pagosAlquiler.idContrato],
     references: [contratosAlquiler.idContrato],
+  }),
+}));
+
+export const documentosAdquisicionRelations = relations(documentosAdquisicion, ({ one }) => ({
+  propiedad: one(propiedades, {
+    fields: [documentosAdquisicion.idPropiedad],
+    references: [propiedades.idPropiedad],
   }),
 }));
 
@@ -289,6 +323,29 @@ export const insertPagoAlquilerSchema = createInsertSchema(pagosAlquiler).omit({
   rutaJustificante: z.string().max(500).optional().or(z.literal('')).transform(val => val || undefined),
 });
 
+export const insertDocumentoAdquisicionSchema = createInsertSchema(documentosAdquisicion).omit({
+  idDocumento: true,
+  fechaAlta: true,
+  validado: true,
+  fechaValidacion: true,
+}).extend({
+  tipo: z.enum([
+    'precio_compra',
+    'gastos_notario',
+    'gastos_registro',
+    'itp',
+    'iva_compra',
+    'gastos_biuro_compra',
+    'gastos_agencia',
+    'mejora'
+  ]),
+  descripcion: z.string().min(1, "Descripción es requerida").max(500),
+  importe: z.string().min(1, "Importe es requerido"),
+  fechaDocumento: z.string().min(1, "Fecha del documento es requerida"),
+  rutaArchivo: z.string().max(500).optional().or(z.literal('')).transform(val => val || undefined),
+  usuarioAlta: z.string().max(100).optional().or(z.literal('')).transform(val => val || undefined),
+});
+
 export type InsertCliente = z.infer<typeof insertClienteSchema>;
 export type Cliente = typeof clientes.$inferSelect;
 
@@ -306,3 +363,6 @@ export type ContratoAlquiler = typeof contratosAlquiler.$inferSelect;
 
 export type InsertPagoAlquiler = z.infer<typeof insertPagoAlquilerSchema>;
 export type PagoAlquiler = typeof pagosAlquiler.$inferSelect;
+
+export type InsertDocumentoAdquisicion = z.infer<typeof insertDocumentoAdquisicionSchema>;
+export type DocumentoAdquisicion = typeof documentosAdquisicion.$inferSelect;
