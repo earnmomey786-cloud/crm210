@@ -29,6 +29,7 @@ Key functionalities include:
 - **Backend**: RESTful API endpoints with Zod schema validation for robust data handling.
 - **Data Layer**: PostgreSQL with Drizzle ORM, using a shared schema for type safety across frontend and backend. Soft deletion (active flags) and business status fields are used for data management.
 - **Development**: Vite for frontend bundling, esbuild for backend compilation, and HMR for efficient development.
+- **Deployment**: Server configured to use port 80 by default (configurable via PORT environment variable) for production deployments. In development mode on Replit, uses port 5000. Server binds to 0.0.0.0 to accept external connections.
 
 ## External Dependencies
 
