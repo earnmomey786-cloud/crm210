@@ -12,6 +12,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 28, 2025 - Fase 1E: Expense Management & Negative Rent Tracking**
+- Created `gastos` table for property expense tracking with type classification (proportional vs 100% deductible)
+- Created `rentas_negativas` table for negative rent tracking with 4-year compensation system
+- Created `compensaciones_rentas_negativas` table for compensation application tracking
+- Implemented `calcularGastosDeducibles` function to calculate deductible expenses (proportional expenses prorated by rental days)
+- Implemented `verificarRentaNegativa` function to detect negative rents (only repairs and mortgage interest generate compensable negative rents)
+- Extended storage layer with CRUD methods for expenses, negative rents, and compensations
+- Implemented complete API endpoints: POST/GET /api/propiedades/:id/gastos, POST /api/propiedades/:id/calcular-gastos-deducibles, POST /api/propiedades/:id/verificar-renta-negativa, GET /api/clientes/:id/rentas-negativas-pendientes, POST /api/declaraciones/:id/aplicar-compensacion
+- Backend functionality complete and operational for expense management and negative rent compensation
+- Expense types: proportional (IBI, community, insurance, mortgage interest, utilities, maintenance), 100% deductible (repairs, gestoría, agency, lawyer, advertising)
+
 **October 28, 2025 - Fase 1D: Amortization Calculation**
 - Created `documentos_adquisicion` table to track all acquisition costs (purchase price, notary fees, registry fees, ITP, agency fees, improvements)
 - Extended `propiedades` table with amortization fields (valor_total_adquisicion, porcentaje_construccion, valor_amortizable, amortizacion_anual)
@@ -87,6 +98,7 @@ Preferred communication style: Simple, everyday language.
 - `/api/clientes` - Client CRUD operations
 - `/api/clientes/:id/propiedades` - Properties by client
 - `/api/clientes/:id/declaraciones` - Client declaration history with year filtering
+- `/api/clientes/:id/rentas-negativas-pendientes` - List pending negative rents for compensation (GET)
 - `/api/propiedades/:id` - Individual property operations
 - `/api/propiedades/:id/copropietarios` - Co-owner management
 - `/api/propiedades/:id/modelo210` - Calculate Modelo 210 (GET - preview only)
@@ -96,10 +108,14 @@ Preferred communication style: Simple, everyday language.
 - `/api/propiedades/:id/documentos-adquisicion` - Acquisition documents for property (GET/POST)
 - `/api/propiedades/:id/calcular-valor-amortizable` - Calculate depreciable value from acquisition costs (POST)
 - `/api/propiedades/:id/calcular-amortizacion` - Calculate annual amortization prorated by days and ownership (POST)
+- `/api/propiedades/:id/gastos` - Register and list property expenses (GET/POST)
+- `/api/propiedades/:id/calcular-gastos-deducibles` - Calculate deductible expenses with proration (POST)
+- `/api/propiedades/:id/verificar-renta-negativa` - Detect and register negative rents (POST)
 - `/api/contratos/:id` - Individual contract operations (GET/PUT)
 - `/api/contratos/:id/cancelar` - Cancel contract with reason (PUT)
 - `/api/contratos/:id/pagos` - Rental payments for contract (GET/POST)
 - `/api/pagos/:id` - Individual payment operations (PUT)
+- `/api/declaraciones/:id/aplicar-compensacion` - Apply negative rent compensation to declaration (POST)
 
 **Request/Response Handling:**
 - JSON body parsing with raw body preservation
@@ -122,6 +138,9 @@ Preferred communication style: Simple, everyday language.
 - `contratos_alquiler` table: Rental contract management with tenant info, dates, rent, payment terms, and business status (activo/finalizado/cancelado/renovado)
 - `pagos_alquiler` table: Payment tracking with monthly/annual organization, status tracking (pendiente/pagado/atrasado/impagado), and document references
 - `documentos_adquisicion` table: Acquisition cost documentation (purchase price, notary, registry, ITP, improvements) with validation status
+- `gastos` table: Property expense tracking with type classification, proportional/100% deductible flags, validation status, and year organization
+- `rentas_negativas` table: Negative rent tracking with 4-year compensation limit, generated fields (importe_pendiente, ano_limite), and state management (pendiente/compensado/vencido)
+- `compensaciones_rentas_negativas` table: Compensation application tracking linking negative rents to declarations with amounts and dates
 - Soft deletion pattern (activo/activa boolean flags for clients and properties)
 - Business status fields for contracts and payments (estado column with predefined values)
 - Indexed fields for common queries (NIE, client names, declaration types, declaration year, contract status, acquisition document types)

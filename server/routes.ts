@@ -952,6 +952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const diasResult = calcularDiasAlquilados(contratos, ano);
 
       const resultado = calcularGastosDeducibles(
+        propiedadId,
         gastosValidados,
         diasResult.totalDiasAlquilados,
         ano
@@ -992,6 +993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const contratos = await storage.getContratosByPropiedad(propiedadId);
       const diasResult = calcularDiasAlquilados(contratos, ano);
       const gastosDeducibles = calcularGastosDeducibles(
+        propiedadId,
         gastosValidados,
         diasResult.totalDiasAlquilados,
         ano

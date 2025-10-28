@@ -98,12 +98,14 @@ export function generaRentaNegativa(tipoGasto: string): boolean {
 /**
  * Calcula los gastos deducibles de una propiedad para un año
  * 
+ * @param idPropiedad - ID de la propiedad
  * @param gastos - Lista de gastos de la propiedad
  * @param diasAlquilados - Días que estuvo alquilada en el año
  * @param ano - Año fiscal
  * @returns Objeto con detalle de gastos deducibles
  */
 export function calcularGastosDeducibles(
+  idPropiedad: number,
   gastos: Gasto[],
   diasAlquilados: number,
   ano: number
@@ -155,7 +157,7 @@ export function calcularGastosDeducibles(
   const formula = `Proporcionales: ${subtotalProporcionales.toFixed(2)}€ × (${diasAlquilados}/${diasTotalesAno}) | 100%: ${subtotal100Deducibles.toFixed(2)}€`;
 
   return {
-    idPropiedad: gastos[0]?.idPropiedad || 0,
+    idPropiedad,
     ano,
     diasAlquilados,
     diasSinAlquilar,
