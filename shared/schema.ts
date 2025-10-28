@@ -83,6 +83,51 @@ export const declaraciones210 = pgTable("declaraciones_210", {
   tipoIdx: index("idx_decl_tipo").on(table.tipo),
 }));
 
+export const contratosAlquiler = pgTable("contratos_alquiler", {
+  idContrato: serial("id_contrato").primaryKey(),
+  idPropiedad: integer("id_propiedad").notNull().references(() => propiedades.idPropiedad),
+  fechaInicio: date("fecha_inicio").notNull(),
+  fechaFin: date("fecha_fin").notNull(),
+  rentaMensual: decimal("renta_mensual", { precision: 10, scale: 2 }).notNull(),
+  formaPago: varchar("forma_pago", { length: 50 }),
+  diaPago: integer("dia_pago"),
+  deposito: decimal("deposito", { precision: 10, scale: 2 }),
+  nombreInquilino: varchar("nombre_inquilino", { length: 200 }).notNull(),
+  apellidosInquilino: varchar("apellidos_inquilino", { length: 200 }),
+  dniNieInquilino: varchar("dni_nie_inquilino", { length: 12 }),
+  emailInquilino: varchar("email_inquilino", { length: 150 }),
+  telefonoInquilino: varchar("telefono_inquilino", { length: 20 }),
+  rutaContratoPdf: varchar("ruta_contrato_pdf", { length: 500 }),
+  estado: varchar("estado", { length: 20 }).default('activo').notNull(),
+  motivoCancelacion: text("motivo_cancelacion"),
+  fechaAlta: timestamp("fecha_alta").defaultNow().notNull(),
+  usuarioAlta: varchar("usuario_alta", { length: 100 }),
+  observaciones: text("observaciones"),
+}, (table) => ({
+  propiedadIdx: index("idx_contrato_propiedad").on(table.idPropiedad),
+  fechasIdx: index("idx_contrato_fechas").on(table.fechaInicio, table.fechaFin),
+  estadoIdx: index("idx_contrato_estado").on(table.estado),
+  inquilinoIdx: index("idx_contrato_inquilino").on(table.nombreInquilino),
+}));
+
+export const pagosAlquiler = pgTable("pagos_alquiler", {
+  idPago: serial("id_pago").primaryKey(),
+  idContrato: integer("id_contrato").notNull().references(() => contratosAlquiler.idContrato),
+  fechaPago: date("fecha_pago").notNull(),
+  mesCorrespondiente: integer("mes_correspondiente"),
+  anoCorrespondiente: integer("ano_correspondiente").notNull(),
+  importe: decimal("importe", { precision: 10, scale: 2 }).notNull(),
+  estado: varchar("estado", { length: 20 }).default('pendiente').notNull(),
+  metodoPago: varchar("metodo_pago", { length: 50 }),
+  referenciaBancaria: varchar("referencia_bancaria", { length: 100 }),
+  rutaJustificante: varchar("ruta_justificante", { length: 500 }),
+  fechaRegistro: timestamp("fecha_registro").defaultNow().notNull(),
+}, (table) => ({
+  contratoIdx: index("idx_pago_contrato").on(table.idContrato),
+  fechaIdx: index("idx_pago_fecha").on(table.fechaPago),
+  estadoIdx: index("idx_pago_estado").on(table.estado),
+}));
+
 export const clientesRelations = relations(clientes, ({ many }) => ({
   propiedades: many(propiedades),
   copropiedades: many(propiedadCopropietarios),
@@ -96,6 +141,7 @@ export const propiedadesRelations = relations(propiedades, ({ one, many }) => ({
   }),
   copropietarios: many(propiedadCopropietarios),
   declaraciones: many(declaraciones210),
+  contratos: many(contratosAlquiler),
 }));
 
 export const propiedadCopropietariosRelations = relations(propiedadCopropietarios, ({ one }) => ({
@@ -117,6 +163,21 @@ export const declaraciones210Relations = relations(declaraciones210, ({ one }) =
   cliente: one(clientes, {
     fields: [declaraciones210.idCliente],
     references: [clientes.idCliente],
+  }),
+}));
+
+export const contratosAlquilerRelations = relations(contratosAlquiler, ({ one, many }) => ({
+  propiedad: one(propiedades, {
+    fields: [contratosAlquiler.idPropiedad],
+    references: [propiedades.idPropiedad],
+  }),
+  pagos: many(pagosAlquiler),
+}));
+
+export const pagosAlquilerRelations = relations(pagosAlquiler, ({ one }) => ({
+  contrato: one(contratosAlquiler, {
+    fields: [pagosAlquiler.idContrato],
+    references: [contratosAlquiler.idContrato],
   }),
 }));
 
@@ -185,6 +246,49 @@ export const insertDeclaracion210Schema = createInsertSchema(declaraciones210).o
   formulaAplicada: z.string().optional().or(z.literal('')).transform(val => val || undefined),
 });
 
+export const insertContratoAlquilerSchema = createInsertSchema(contratosAlquiler).omit({
+  idContrato: true,
+  fechaAlta: true,
+}).extend({
+  fechaInicio: z.string().min(1, "Fecha de inicio es requerida"),
+  fechaFin: z.string().min(1, "Fecha de fin es requerida"),
+  rentaMensual: z.string().min(1, "Renta mensual es requerida"),
+  diaPago: z.number().int().min(1).max(31).optional(),
+  deposito: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  nombreInquilino: z.string().min(1, "Nombre del inquilino es requerido").max(200),
+  apellidosInquilino: z.string().max(200).optional().or(z.literal('')).transform(val => val || undefined),
+  dniNieInquilino: z.string().max(12).optional().or(z.literal('')).transform(val => val || undefined),
+  emailInquilino: z.string().email("Email inválido").max(150).optional().or(z.literal('')).transform(val => val || undefined),
+  telefonoInquilino: z.string().max(20).optional().or(z.literal('')).transform(val => val || undefined),
+  formaPago: z.string().max(50).optional().or(z.literal('')).transform(val => val || undefined),
+  rutaContratoPdf: z.string().max(500).optional().or(z.literal('')).transform(val => val || undefined),
+  estado: z.enum(['activo', 'finalizado', 'cancelado', 'renovado']).optional(),
+  motivoCancelacion: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  usuarioAlta: z.string().max(100).optional().or(z.literal('')).transform(val => val || undefined),
+  observaciones: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+}).refine((data) => {
+  const inicio = new Date(data.fechaInicio);
+  const fin = new Date(data.fechaFin);
+  return fin >= inicio;
+}, {
+  message: "La fecha de fin debe ser posterior o igual a la fecha de inicio",
+  path: ["fechaFin"],
+});
+
+export const insertPagoAlquilerSchema = createInsertSchema(pagosAlquiler).omit({
+  idPago: true,
+  fechaRegistro: true,
+}).extend({
+  fechaPago: z.string().min(1, "Fecha de pago es requerida"),
+  mesCorrespondiente: z.number().int().min(1).max(12).optional(),
+  anoCorrespondiente: z.number().int().min(2020).max(2030),
+  importe: z.string().min(1, "Importe es requerido"),
+  estado: z.enum(['pendiente', 'pagado', 'atrasado', 'impagado']).optional(),
+  metodoPago: z.string().max(50).optional().or(z.literal('')).transform(val => val || undefined),
+  referenciaBancaria: z.string().max(100).optional().or(z.literal('')).transform(val => val || undefined),
+  rutaJustificante: z.string().max(500).optional().or(z.literal('')).transform(val => val || undefined),
+});
+
 export type InsertCliente = z.infer<typeof insertClienteSchema>;
 export type Cliente = typeof clientes.$inferSelect;
 
@@ -196,3 +300,9 @@ export type Copropietario = typeof propiedadCopropietarios.$inferSelect;
 
 export type InsertDeclaracion210 = z.infer<typeof insertDeclaracion210Schema>;
 export type Declaracion210 = typeof declaraciones210.$inferSelect;
+
+export type InsertContratoAlquiler = z.infer<typeof insertContratoAlquilerSchema>;
+export type ContratoAlquiler = typeof contratosAlquiler.$inferSelect;
+
+export type InsertPagoAlquiler = z.infer<typeof insertPagoAlquilerSchema>;
+export type PagoAlquiler = typeof pagosAlquiler.$inferSelect;
