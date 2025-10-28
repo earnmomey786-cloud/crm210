@@ -1,14 +1,38 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
-import { ChevronLeft, Plus, Building2, Home, MapPin, Edit } from "lucide-react";
+import { ChevronLeft, Plus, Building2, Home, MapPin, Edit, FileText, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { NuevaPropiedadDialog } from "@/components/nueva-propiedad-dialog";
 import { NuevoClienteDialog } from "@/components/nuevo-cliente-dialog";
 import type { Cliente, Propiedad } from "@shared/schema";
+
+interface Declaracion {
+  idDeclaracion: number;
+  propiedad: string;
+  tipo: string;
+  modalidad: string;
+  ano: number;
+  cuotaPagar: number;
+  estado: string | null;
+}
+
+interface DeclaracionesResponse {
+  cliente: string;
+  ano: string | number;
+  declaraciones: Declaracion[];
+  totalCuota: number;
+}
 
 export default function ClientePropiedades() {
   const params = useParams();
@@ -16,6 +40,8 @@ export default function ClientePropiedades() {
   const clienteId = parseInt(params.id || "0");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editClienteDialogOpen, setEditClienteDialogOpen] = useState(false);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<string>("all");
 
   const { data: cliente, isLoading: loadingCliente } = useQuery<Cliente>({
     queryKey: ['/api/clientes', clienteId],
@@ -25,7 +51,14 @@ export default function ClientePropiedades() {
     queryKey: ['/api/clientes', clienteId, 'propiedades'],
   });
 
+  const { data: declaraciones, isLoading: loadingDeclaraciones } = useQuery<DeclaracionesResponse>({
+    queryKey: ['/api/clientes', clienteId, 'declaraciones', selectedYear === "all" ? undefined : selectedYear],
+    enabled: !!clienteId,
+  });
+
   const propiedadesActivas = propiedades?.filter(p => p.activa) || [];
+
+  const availableYears = [currentYear, currentYear - 1, currentYear - 2];
 
   const getTipoDeclaracionColor = (tipo: string) => {
     switch (tipo) {
@@ -242,6 +275,131 @@ export default function ClientePropiedades() {
                   </Card>
                 </Link>
               ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+              <FileText className="w-6 h-6 text-primary" />
+              Historial de Declaraciones
+            </h2>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[150px] rounded-lg" data-testid="select-year">
+                  <SelectValue placeholder="Seleccionar año" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" data-testid="select-year-all">Todos los años</SelectItem>
+                  {availableYears.map(year => (
+                    <SelectItem 
+                      key={year} 
+                      value={year.toString()}
+                      data-testid={`select-year-${year}`}
+                    >
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {loadingDeclaraciones ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-20 w-full rounded-2xl" />
+              ))}
+            </div>
+          ) : !declaraciones || declaraciones.declaraciones.length === 0 ? (
+            <Card className="p-8 rounded-2xl" data-testid="card-no-declaraciones">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                  <FileText className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  No hay declaraciones
+                </h3>
+                <p className="text-muted-foreground">
+                  {selectedYear === "all" 
+                    ? "Aún no se han calculado declaraciones para este cliente"
+                    : `No hay declaraciones para el año ${selectedYear}`}
+                </p>
+              </div>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3">
+                {declaraciones.declaraciones.map((declaracion) => (
+                  <Card 
+                    key={declaracion.idDeclaracion} 
+                    className="p-4 rounded-2xl hover-elevate"
+                    data-testid={`card-declaracion-${declaracion.idDeclaracion}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="font-semibold text-card-foreground" data-testid={`text-propiedad-${declaracion.idDeclaracion}`}>
+                            {declaracion.propiedad}
+                          </h4>
+                          <Badge 
+                            className={`rounded-full px-2 py-0.5 text-xs ${getTipoDeclaracionColor(declaracion.tipo)}`}
+                            data-testid={`badge-tipo-${declaracion.idDeclaracion}`}
+                          >
+                            {getTipoDeclaracionLabel(declaracion.tipo)}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span data-testid={`text-ano-${declaracion.idDeclaracion}`}>
+                            Año: <span className="font-medium text-card-foreground">{declaracion.ano}</span>
+                          </span>
+                          <span className="text-muted-foreground">•</span>
+                          <span data-testid={`text-modalidad-${declaracion.idDeclaracion}`}>
+                            {declaracion.modalidad === 'anual' ? 'Anual' : 'Trimestral'}
+                          </span>
+                          {declaracion.estado && (
+                            <>
+                              <span className="text-muted-foreground">•</span>
+                              <span data-testid={`text-estado-${declaracion.idDeclaracion}`}>
+                                {declaracion.estado}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground mb-1">Cuota a pagar</p>
+                        <p className="text-xl font-bold text-primary" data-testid={`text-cuota-${declaracion.idDeclaracion}`}>
+                          {new Intl.NumberFormat('es-ES', {
+                            style: 'currency',
+                            currency: 'EUR',
+                            minimumFractionDigits: 2,
+                          }).format(declaracion.cuotaPagar)}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              {declaraciones.declaraciones.length > 0 && (
+                <Card className="p-4 rounded-2xl bg-primary/5 border-primary/20" data-testid="card-total-cuota">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-card-foreground">
+                      Total a pagar {selectedYear === "all" ? "(todos los años)" : `(año ${selectedYear})`}
+                    </p>
+                    <p className="text-2xl font-bold text-primary" data-testid="text-total-cuota">
+                      {new Intl.NumberFormat('es-ES', {
+                        style: 'currency',
+                        currency: 'EUR',
+                        minimumFractionDigits: 2,
+                      }).format(declaraciones.totalCuota)}
+                    </p>
+                  </div>
+                </Card>
+              )}
             </div>
           )}
         </div>

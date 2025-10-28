@@ -53,9 +53,40 @@ export const propiedadCopropietarios = pgTable("propiedad_copropietarios", {
   propiedadIdx: index("idx_propiedad_cop").on(table.idPropiedad),
 }));
 
+export const declaraciones210 = pgTable("declaraciones_210", {
+  idDeclaracion: serial("id_declaracion").primaryKey(),
+  idPropiedad: integer("id_propiedad").notNull().references(() => propiedades.idPropiedad),
+  idCliente: integer("id_cliente").notNull().references(() => clientes.idCliente),
+  ano: integer("ano").notNull(),
+  trimestre: integer("trimestre"),
+  tipo: varchar("tipo", { length: 20 }).notNull(),
+  modalidad: varchar("modalidad", { length: 20 }).notNull(),
+  diasDeclarados: integer("dias_declarados").notNull(),
+  valorCatastralBase: decimal("valor_catastral_base", { precision: 12, scale: 2 }),
+  porcentajeAplicado: decimal("porcentaje_aplicado", { precision: 5, scale: 4 }),
+  rentaImputada: decimal("renta_imputada", { precision: 12, scale: 2 }),
+  ingresosAlquiler: decimal("ingresos_alquiler", { precision: 12, scale: 2 }),
+  gastosDeducibles: decimal("gastos_deducibles", { precision: 12, scale: 2 }),
+  amortizacion: decimal("amortizacion", { precision: 12, scale: 2 }),
+  baseImponible: decimal("base_imponible", { precision: 12, scale: 2 }).notNull(),
+  cuotaPagar: decimal("cuota_pagar", { precision: 12, scale: 2 }).notNull(),
+  porcentajeParticipacion: decimal("porcentaje_participacion", { precision: 5, scale: 2 }).default('100.00').notNull(),
+  estado: varchar("estado", { length: 20 }).default('borrador').notNull(),
+  fechaPresentacion: date("fecha_presentacion"),
+  fechaCalculo: timestamp("fecha_calculo").defaultNow().notNull(),
+  usuarioCalculo: varchar("usuario_calculo", { length: 100 }),
+  formulaAplicada: text("formula_aplicada"),
+}, (table) => ({
+  propiedadIdx: index("idx_decl_propiedad").on(table.idPropiedad),
+  clienteIdx: index("idx_decl_cliente").on(table.idCliente),
+  anoIdx: index("idx_decl_ano").on(table.ano),
+  tipoIdx: index("idx_decl_tipo").on(table.tipo),
+}));
+
 export const clientesRelations = relations(clientes, ({ many }) => ({
   propiedades: many(propiedades),
   copropiedades: many(propiedadCopropietarios),
+  declaraciones: many(declaraciones210),
 }));
 
 export const propiedadesRelations = relations(propiedades, ({ one, many }) => ({
@@ -64,6 +95,7 @@ export const propiedadesRelations = relations(propiedades, ({ one, many }) => ({
     references: [clientes.idCliente],
   }),
   copropietarios: many(propiedadCopropietarios),
+  declaraciones: many(declaraciones210),
 }));
 
 export const propiedadCopropietariosRelations = relations(propiedadCopropietarios, ({ one }) => ({
@@ -73,6 +105,17 @@ export const propiedadCopropietariosRelations = relations(propiedadCopropietario
   }),
   cliente: one(clientes, {
     fields: [propiedadCopropietarios.idCliente],
+    references: [clientes.idCliente],
+  }),
+}));
+
+export const declaraciones210Relations = relations(declaraciones210, ({ one }) => ({
+  propiedad: one(propiedades, {
+    fields: [declaraciones210.idPropiedad],
+    references: [propiedades.idPropiedad],
+  }),
+  cliente: one(clientes, {
+    fields: [declaraciones210.idCliente],
     references: [clientes.idCliente],
   }),
 }));
@@ -119,6 +162,29 @@ export const insertCopropietarioSchema = createInsertSchema(propiedadCopropietar
   fechaInicio: z.string().min(1, "Fecha de inicio es requerida"),
 });
 
+export const insertDeclaracion210Schema = createInsertSchema(declaraciones210).omit({
+  idDeclaracion: true,
+  fechaCalculo: true,
+  estado: true,
+}).extend({
+  ano: z.number().int().min(2020).max(2030),
+  diasDeclarados: z.number().int().min(1).max(365),
+  tipo: z.enum(['imputacion', 'alquiler', 'mixta']),
+  modalidad: z.enum(['anual', 'trimestral']),
+  valorCatastralBase: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  porcentajeAplicado: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  rentaImputada: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  ingresosAlquiler: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  gastosDeducibles: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  amortizacion: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  baseImponible: z.string().min(1, "Base imponible es requerida"),
+  cuotaPagar: z.string().min(1, "Cuota a pagar es requerida"),
+  porcentajeParticipacion: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  fechaPresentacion: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  usuarioCalculo: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  formulaAplicada: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+});
+
 export type InsertCliente = z.infer<typeof insertClienteSchema>;
 export type Cliente = typeof clientes.$inferSelect;
 
@@ -127,3 +193,6 @@ export type Propiedad = typeof propiedades.$inferSelect;
 
 export type InsertCopropietario = z.infer<typeof insertCopropietarioSchema>;
 export type Copropietario = typeof propiedadCopropietarios.$inferSelect;
+
+export type InsertDeclaracion210 = z.infer<typeof insertDeclaracion210Schema>;
+export type Declaracion210 = typeof declaraciones210.$inferSelect;

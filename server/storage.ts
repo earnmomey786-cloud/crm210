@@ -2,12 +2,15 @@ import {
   clientes, 
   propiedades, 
   propiedadCopropietarios,
+  declaraciones210,
   type Cliente, 
   type InsertCliente,
   type Propiedad,
   type InsertPropiedad,
   type Copropietario,
   type InsertCopropietario,
+  type Declaracion210,
+  type InsertDeclaracion210,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql, or, ilike } from "drizzle-orm";
@@ -29,6 +32,10 @@ export interface IStorage {
   getCopropietariosByPropiedad(propiedadId: number): Promise<Array<Copropietario & { cliente: Cliente }>>;
   createCopropietarios(propiedadId: number, copropietariosData: Array<{ idCliente: number; porcentaje: string; fechaInicio: string }>): Promise<void>;
   deleteCopropietario(propiedadId: number, clienteId: number): Promise<void>;
+
+  createDeclaracion210(declaracion: InsertDeclaracion210): Promise<Declaracion210>;
+  getDeclaracionesByCliente(clienteId: number, ano?: number): Promise<Array<Declaracion210 & { propiedad: Propiedad }>>;
+  getDeclaracionesByPropiedad(propiedadId: number, ano?: number): Promise<Declaracion210[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -168,6 +175,53 @@ export class DatabaseStorage implements IStorage {
           eq(propiedadCopropietarios.idCliente, clienteId)
         )
       );
+  }
+
+  async createDeclaracion210(insertDeclaracion: InsertDeclaracion210): Promise<Declaracion210> {
+    const [declaracion] = await db
+      .insert(declaraciones210)
+      .values(insertDeclaracion)
+      .returning();
+    return declaracion;
+  }
+
+  async getDeclaracionesByCliente(clienteId: number, ano?: number): Promise<Array<Declaracion210 & { propiedad: Propiedad }>> {
+    const whereConditions = ano 
+      ? and(
+          eq(declaraciones210.idCliente, clienteId),
+          eq(declaraciones210.ano, ano)
+        )
+      : eq(declaraciones210.idCliente, clienteId);
+
+    const results = await db
+      .select({
+        declaracion: declaraciones210,
+        propiedad: propiedades,
+      })
+      .from(declaraciones210)
+      .innerJoin(propiedades, eq(declaraciones210.idPropiedad, propiedades.idPropiedad))
+      .where(whereConditions)
+      .orderBy(sql`${declaraciones210.fechaCalculo} DESC`);
+
+    return results.map(r => ({
+      ...r.declaracion,
+      propiedad: r.propiedad,
+    }));
+  }
+
+  async getDeclaracionesByPropiedad(propiedadId: number, ano?: number): Promise<Declaracion210[]> {
+    const whereConditions = ano
+      ? and(
+          eq(declaraciones210.idPropiedad, propiedadId),
+          eq(declaraciones210.ano, ano)
+        )
+      : eq(declaraciones210.idPropiedad, propiedadId);
+
+    return await db
+      .select()
+      .from(declaraciones210)
+      .where(whereConditions)
+      .orderBy(sql`${declaraciones210.fechaCalculo} DESC`);
   }
 }
 

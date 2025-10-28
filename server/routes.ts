@@ -330,6 +330,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/propiedades/:id/calcular-imputacion', async (req, res) => {
+    try {
+      const propiedadId = parseInt(req.params.id);
+      const { ano, dias, porcentajeAplicado } = req.body;
+
+      const propiedad = await storage.getPropiedad(propiedadId);
+      if (!propiedad) {
+        return res.status(404).json({ message: 'Propiedad no encontrada' });
+      }
+
+      if (propiedad.tipoDeclaracion !== 'imputacion') {
+        return res.status(400).json({ 
+          message: 'Este endpoint solo funciona para propiedades de imputación' 
+        });
+      }
+
+      // Validar datos requeridos
+      if (!propiedad.valorCatastralTotal || propiedad.valorCatastralTotal.trim() === '') {
+        return res.status(400).json({ 
+          message: 'La propiedad debe tener un valor catastral total' 
+        });
+      }
+
+      if (!propiedad.fechaCompra || propiedad.fechaCompra.trim() === '') {
+        return res.status(400).json({ 
+          message: 'La propiedad debe tener una fecha de compra' 
+        });
+      }
+
+      // Obtener copropietarios
+      const copropietarios = await storage.getCopropietariosByPropiedad(propiedadId);
+      
+      // Si no hay copropietarios, crear declaración para el propietario principal
+      const propietarios = copropietarios.length > 0 
+        ? copropietarios.map(c => ({
+            idCliente: c.idCliente,
+            porcentaje: parseFloat(c.porcentaje),
+          }))
+        : [{ idCliente: propiedad.idCliente, porcentaje: 100 }];
+
+      const declaraciones = [];
+      
+      for (const propietario of propietarios) {
+        // Calcular Modelo 210 para este propietario
+        const resultado = calcularModelo210Imputacion({
+          valorCatastralTotal: propiedad.valorCatastralTotal,
+          fechaCompra: propiedad.fechaCompra,
+          tipoPropiedad: propiedad.tipo as any,
+          porcentajePropiedad: propietario.porcentaje,
+          ano,
+          dias,
+          porcentajeAplicado,
+        });
+
+        // Guardar declaración en la base de datos
+        const declaracion = await storage.createDeclaracion210({
+          idPropiedad: propiedadId,
+          idCliente: propietario.idCliente,
+          ano: resultado.ano,
+          trimestre: undefined,
+          tipo: 'imputacion',
+          modalidad: 'anual',
+          diasDeclarados: resultado.dias,
+          valorCatastralBase: propiedad.valorCatastralTotal,
+          porcentajeAplicado: resultado.detalles.porcentajeImputacion.toFixed(4),
+          rentaImputada: resultado.detalles.rentaImputada.toFixed(2),
+          ingresosAlquiler: undefined,
+          gastosDeducibles: undefined,
+          amortizacion: undefined,
+          baseImponible: resultado.baseImponible.toFixed(2),
+          cuotaPagar: resultado.importeAPagar.toFixed(2),
+          porcentajeParticipacion: propietario.porcentaje.toFixed(2),
+          fechaPresentacion: undefined,
+          usuarioCalculo: undefined,
+          formulaAplicada: resultado.formula,
+        });
+
+        declaraciones.push({
+          idDeclaracion: declaracion.idDeclaracion,
+          idCliente: propietario.idCliente,
+          porcentajeParticipacion: propietario.porcentaje,
+          rentaImputada: resultado.detalles.rentaImputada,
+          baseImponible: resultado.baseImponible,
+          tipoImpositivo: resultado.tipoImpositivo,
+          cuotaPagar: resultado.importeAPagar,
+          formula: resultado.formula,
+        });
+      }
+
+      res.status(201).json({
+        propiedad: {
+          id: propiedadId,
+          direccion: propiedad.direccion,
+        },
+        declaraciones,
+      });
+    } catch (error: any) {
+      console.error('Error al calcular y guardar declaración:', error);
+      
+      if (error.message && (
+        error.message.includes('inválido') || 
+        error.message.includes('faltante') ||
+        error.message.includes('obligatoria') ||
+        error.message.includes('debe ser')
+      )) {
+        return res.status(400).json({ message: error.message });
+      }
+      
+      res.status(500).json({ message: 'Error al calcular y guardar declaración' });
+    }
+  });
+
+  app.get('/api/clientes/:id/declaraciones', async (req, res) => {
+    try {
+      const clienteId = parseInt(req.params.id);
+      const ano = req.query.ano ? parseInt(req.query.ano as string) : undefined;
+
+      const cliente = await storage.getCliente(clienteId);
+      if (!cliente) {
+        return res.status(404).json({ message: 'Cliente no encontrado' });
+      }
+
+      const declaraciones = await storage.getDeclaracionesByCliente(clienteId, ano);
+
+      const totalCuota = declaraciones.reduce((sum, d) => {
+        const cuota = parseFloat(d.cuotaPagar);
+        return sum + (isNaN(cuota) ? 0 : cuota);
+      }, 0);
+
+      res.json({
+        cliente: `${cliente.nombre} ${cliente.apellidos}`,
+        ano: ano || 'Todos',
+        declaraciones: declaraciones.map(d => ({
+          idDeclaracion: d.idDeclaracion,
+          propiedad: d.propiedad.direccion,
+          tipo: d.tipo,
+          modalidad: d.modalidad,
+          ano: d.ano,
+          cuotaPagar: parseFloat(d.cuotaPagar),
+          estado: d.estado,
+        })),
+        totalCuota: Math.round(totalCuota * 100) / 100,
+      });
+    } catch (error: any) {
+      console.error('Error al obtener declaraciones:', error);
+      res.status(500).json({ message: 'Error al obtener declaraciones' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

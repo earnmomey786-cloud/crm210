@@ -9,11 +9,32 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import { NuevaPropiedadDialog } from "@/components/nueva-propiedad-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Propiedad, Cliente, Copropietario } from "@shared/schema";
 import type { Modelo210ImputacionResult } from "@shared/modelo210-calc";
 import { formatEuros, formatPercentage } from "@shared/modelo210-calc";
+
+interface DeclaracionGuardada {
+  idDeclaracion: number;
+  idCliente: number;
+  porcentajeParticipacion: number;
+  rentaImputada: number;
+  baseImponible: number;
+  tipoImpositivo: number;
+  cuotaPagar: number;
+  formula: string;
+}
+
+interface ResultadoCalculo {
+  propiedad: {
+    id: number;
+    direccion: string;
+  };
+  declaraciones: DeclaracionGuardada[];
+}
 
 export default function PropiedadDetalle() {
   const params = useParams();
@@ -21,6 +42,10 @@ export default function PropiedadDetalle() {
   const propiedadId = parseInt(params.id || "0");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [calculoModelo, setCalculoModelo] = useState<Modelo210ImputacionResult | null>(null);
+  const currentYear = new Date().getFullYear();
+  const [ano, setAno] = useState(currentYear.toString());
+  const [dias, setDias] = useState("365");
+  const [porcentajeAplicado, setPorcentajeAplicado] = useState("");
   const { toast } = useToast();
 
   const { data: propiedad, isLoading: loadingPropiedad } = useQuery<Propiedad>({
@@ -38,21 +63,63 @@ export default function PropiedadDetalle() {
 
   const calcularModelo210Mutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/propiedades/${propiedadId}/modelo210`, {
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Error al calcular Modelo 210');
+      const anoNum = parseInt(ano);
+      const diasNum = parseInt(dias);
+      const porcentajeNum = porcentajeAplicado ? parseFloat(porcentajeAplicado) : undefined;
+
+      if (isNaN(anoNum) || anoNum < 2000 || anoNum > 2100) {
+        throw new Error('El año debe estar entre 2000 y 2100');
       }
-      return res.json();
-    },
-    onSuccess: (data: Modelo210ImputacionResult) => {
-      setCalculoModelo(data);
-      toast({
-        title: "Modelo 210 calculado",
-        description: "El cálculo se ha realizado exitosamente.",
+      if (isNaN(diasNum) || diasNum < 1 || diasNum > 366) {
+        throw new Error('Los días deben estar entre 1 y 366');
+      }
+      if (porcentajeNum !== undefined && (isNaN(porcentajeNum) || porcentajeNum < 0 || porcentajeNum > 100)) {
+        throw new Error('El porcentaje debe estar entre 0 y 100');
+      }
+
+      return await apiRequest(`/api/propiedades/${propiedadId}/calcular-imputacion`, {
+        method: 'POST',
+        body: JSON.stringify({ 
+          ano: anoNum, 
+          dias: diasNum,
+          porcentajeAplicado: porcentajeNum
+        }),
       });
+    },
+    onSuccess: (data: ResultadoCalculo) => {
+      // Mostrar los detalles del cálculo de la primera declaración (propietario principal)
+      if (data.declaraciones.length > 0) {
+        const primeraDeclaracion = data.declaraciones[0];
+        setCalculoModelo({
+          ano: parseInt(ano),
+          dias: parseInt(dias),
+          baseImponible: primeraDeclaracion.baseImponible,
+          tipoImpositivo: primeraDeclaracion.tipoImpositivo,
+          importeAPagar: primeraDeclaracion.cuotaPagar,
+          formula: primeraDeclaracion.formula,
+          detalles: {
+            valorCatastral: propiedad?.valorCatastralTotal ? parseFloat(propiedad.valorCatastralTotal) : 0,
+            porcentajeImputacion: porcentajeAplicado ? parseFloat(porcentajeAplicado) : 0,
+            porcentajePropiedad: primeraDeclaracion.porcentajeParticipacion,
+            rentaImputada: primeraDeclaracion.rentaImputada,
+          }
+        });
+      }
+
+      // Invalidar queries para refrescar el historial
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/clientes', propiedad?.idCliente, 'declaraciones'] 
+      });
+
+      toast({
+        title: "Declaración guardada",
+        description: `Se guardaron ${data.declaraciones.length} declaración(es) correctamente.`,
+      });
+      
+      // Resetear formulario
+      setAno(currentYear.toString());
+      setDias("365");
+      setPorcentajeAplicado("");
     },
     onError: (error: Error) => {
       toast({
@@ -371,28 +438,100 @@ export default function PropiedadDetalle() {
 
             {propiedad.tipoDeclaracion === 'imputacion' && (
               <>
-                <Button 
-                  onClick={() => calcularModelo210Mutation.mutate()}
-                  disabled={calcularModelo210Mutation.isPending || !propiedad.valorCatastralTotal}
-                  variant="default" 
-                  className="w-full rounded-lg h-12 text-base font-semibold shadow-md"
-                  data-testid="button-calcular-modelo"
-                >
-                  {calcularModelo210Mutation.isPending ? (
-                    <>Calculando...</>
-                  ) : (
-                    <>
-                      <Calculator className="w-5 h-5 mr-2" />
-                      Calcular Modelo 210
-                    </>
-                  )}
-                </Button>
+                <Card className="p-6 rounded-2xl" data-testid="card-calcular-declaracion">
+                  <h2 className="text-lg font-semibold text-card-foreground mb-4 flex items-center gap-2">
+                    <Calculator className="w-5 h-5 text-primary" />
+                    Calcular y Guardar Declaración
+                  </h2>
+                  
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      calcularModelo210Mutation.mutate();
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="ano" className="text-sm font-medium text-card-foreground">
+                          Año Fiscal
+                        </Label>
+                        <Input
+                          id="ano"
+                          type="number"
+                          value={ano}
+                          onChange={(e) => setAno(e.target.value)}
+                          min="2000"
+                          max="2100"
+                          required
+                          data-testid="input-ano"
+                          className="rounded-lg"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="dias" className="text-sm font-medium text-card-foreground">
+                          Días (máx. 366)
+                        </Label>
+                        <Input
+                          id="dias"
+                          type="number"
+                          value={dias}
+                          onChange={(e) => setDias(e.target.value)}
+                          min="1"
+                          max="366"
+                          required
+                          data-testid="input-dias"
+                          className="rounded-lg"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="porcentaje" className="text-sm font-medium text-card-foreground">
+                        % Aplicado (opcional, deja vacío para cálculo automático)
+                      </Label>
+                      <Input
+                        id="porcentaje"
+                        type="number"
+                        value={porcentajeAplicado}
+                        onChange={(e) => setPorcentajeAplicado(e.target.value)}
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        placeholder="Ej: 1.1 o 2.0"
+                        data-testid="input-porcentaje"
+                        className="rounded-lg"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Déjalo en blanco para usar el porcentaje automático basado en la fecha de revisión catastral
+                      </p>
+                    </div>
+
+                    <Button 
+                      type="submit"
+                      disabled={calcularModelo210Mutation.isPending || !propiedad.valorCatastralTotal}
+                      variant="default" 
+                      className="w-full rounded-lg h-12 text-base font-semibold shadow-md"
+                      data-testid="button-calcular-modelo"
+                    >
+                      {calcularModelo210Mutation.isPending ? (
+                        <>Guardando...</>
+                      ) : (
+                        <>
+                          <Calculator className="w-5 h-5 mr-2" />
+                          Calcular y Guardar
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </Card>
 
                 {calculoModelo && (
                   <Card className="p-6 rounded-2xl" data-testid="card-resultado-modelo210">
                     <h2 className="text-xl font-semibold text-card-foreground mb-4 flex items-center gap-2">
                       <Calculator className="w-5 h-5 text-primary" />
-                      Resultado Modelo 210
+                      Último Resultado Calculado
                     </h2>
                     
                     <div className="space-y-4">
@@ -422,18 +561,32 @@ export default function PropiedadDetalle() {
                         <p className="text-sm font-semibold text-card-foreground mb-3">Detalles del Cálculo</p>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
+                            <span className="text-muted-foreground">Año:</span>
+                            <span className="font-medium">{calculoModelo.ano}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Días:</span>
+                            <span className="font-medium">{calculoModelo.dias}</span>
+                          </div>
+                          <div className="flex justify-between">
                             <span className="text-muted-foreground">Valor Catastral:</span>
                             <span className="font-medium">{formatEuros(calculoModelo.detalles.valorCatastral)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">% Imputación:</span>
-                            <span className="font-medium">{formatPercentage(calculoModelo.detalles.porcentajeImputacion)}</span>
+                            <span className="text-muted-foreground">Renta Imputada:</span>
+                            <span className="font-medium">{formatEuros(calculoModelo.detalles.rentaImputada)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">% Propiedad:</span>
                             <span className="font-medium">{formatPercentage(calculoModelo.detalles.porcentajePropiedad)}</span>
                           </div>
                         </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-border">
+                        <p className="text-xs text-muted-foreground font-mono bg-muted/30 p-3 rounded-lg">
+                          {calculoModelo.formula}
+                        </p>
                       </div>
                     </div>
                   </Card>
