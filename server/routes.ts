@@ -1,10 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClienteSchema, insertPropiedadSchema, insertContratoAlquilerSchema, insertPagoAlquilerSchema, contratosAlquiler, pagosAlquiler } from "@shared/schema";
+import { insertClienteSchema, insertPropiedadSchema, insertContratoAlquilerSchema, insertPagoAlquilerSchema, insertDocumentoAdquisicionSchema, contratosAlquiler, pagosAlquiler } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { calcularModelo210Imputacion } from "@shared/modelo210-calc";
 import { calcularDiasAlquilados } from "@shared/contratos-calc";
+import { calcularValorAmortizable, calcularAmortizacion } from "@shared/amortizacion-calc";
 import { z } from "zod";
 import { createInsertSchema } from "drizzle-zod";
 
@@ -727,6 +728,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Error al actualizar pago:', error);
       res.status(500).json({ message: 'Error al actualizar pago' });
+    }
+  });
+
+  app.get('/api/propiedades/:id/documentos-adquisicion', async (req, res) => {
+    try {
+      const propiedadId = parseInt(req.params.id);
+
+      const propiedad = await storage.getPropiedad(propiedadId);
+      if (!propiedad) {
+        return res.status(404).json({ message: 'Propiedad no encontrada' });
+      }
+
+      const documentos = await storage.getDocumentosByPropiedad(propiedadId);
+      
+      const sumaTotal = documentos.reduce((sum, doc) => sum + parseFloat(doc.importe), 0);
+
+      res.json({
+        id_propiedad: propiedadId,
+        documentos,
+        total_documentos: documentos.length,
+        suma_total: sumaTotal
+      });
+    } catch (error: any) {
+      console.error('Error al obtener documentos:', error);
+      res.status(500).json({ message: 'Error al obtener documentos' });
+    }
+  });
+
+  app.post('/api/propiedades/:id/documentos-adquisicion', async (req, res) => {
+    try {
+      const propiedadId = parseInt(req.params.id);
+
+      const propiedad = await storage.getPropiedad(propiedadId);
+      if (!propiedad) {
+        return res.status(404).json({ message: 'Propiedad no encontrada' });
+      }
+
+      const { documentos } = req.body;
+
+      if (!Array.isArray(documentos) || documentos.length === 0) {
+        return res.status(400).json({ message: 'Debe proporcionar al menos un documento' });
+      }
+
+      const validationErrors: string[] = [];
+      for (let i = 0; i < documentos.length; i++) {
+        const validation = insertDocumentoAdquisicionSchema.safeParse(documentos[i]);
+        if (!validation.success) {
+          const errorMessage = fromZodError(validation.error).toString();
+          validationErrors.push(`Documento ${i + 1}: ${errorMessage}`);
+        }
+      }
+
+      if (validationErrors.length > 0) {
+        return res.status(400).json({ 
+          message: 'Errores de validación',
+          errors: validationErrors 
+        });
+      }
+
+      const documentosCreados = await storage.createDocumentos(propiedadId, documentos);
+      
+      const valorTotalAdquisicion = documentosCreados.reduce((sum, doc) => sum + parseFloat(doc.importe), 0);
+
+      res.status(201).json({
+        id_propiedad: propiedadId,
+        documentos_registrados: documentosCreados.length,
+        valor_total_adquisicion: valorTotalAdquisicion,
+        mensaje: 'Documentos registrados correctamente'
+      });
+    } catch (error: any) {
+      console.error('Error al registrar documentos:', error);
+      res.status(500).json({ message: 'Error al registrar documentos' });
+    }
+  });
+
+  app.post('/api/propiedades/:id/calcular-valor-amortizable', async (req, res) => {
+    try {
+      const propiedadId = parseInt(req.params.id);
+
+      const propiedad = await storage.getPropiedad(propiedadId);
+      if (!propiedad) {
+        return res.status(404).json({ message: 'Propiedad no encontrada' });
+      }
+
+      const documentos = await storage.getDocumentosByPropiedad(propiedadId, true);
+
+      const resultado = calcularValorAmortizable(propiedad, documentos);
+
+      await storage.updatePropiedadAmortizacion(
+        propiedadId,
+        resultado.valor_total_adquisicion,
+        resultado.valores_catastrales.porcentaje_construccion,
+        resultado.valor_amortizable,
+        resultado.amortizacion_anual
+      );
+
+      res.json(resultado);
+    } catch (error: any) {
+      console.error('Error al calcular valor amortizable:', error);
+      
+      if (error.message) {
+        return res.status(400).json({ message: error.message });
+      }
+      
+      res.status(500).json({ message: 'Error al calcular valor amortizable' });
+    }
+  });
+
+  app.post('/api/propiedades/:id/calcular-amortizacion', async (req, res) => {
+    try {
+      const propiedadId = parseInt(req.params.id);
+      const { ano } = req.body;
+
+      if (!ano || typeof ano !== 'number') {
+        return res.status(400).json({ message: 'Debe proporcionar el año' });
+      }
+
+      const propiedad = await storage.getPropiedad(propiedadId);
+      if (!propiedad) {
+        return res.status(404).json({ message: 'Propiedad no encontrada' });
+      }
+
+      const contratos = await storage.getContratosByPropiedad(propiedadId);
+      const diasResult = calcularDiasAlquilados(contratos, ano);
+
+      const copropietariosData = await storage.getCopropietariosByPropiedad(propiedadId);
+      
+      const copropietarios = copropietariosData.map(cop => ({
+        id_cliente: cop.idCliente,
+        nombre: `${cop.cliente.nombre} ${cop.cliente.apellidos}`,
+        porcentaje_participacion: parseFloat(cop.porcentaje)
+      }));
+
+      const resultado = calcularAmortizacion(
+        propiedad,
+        diasResult.totalDiasAlquilados,
+        copropietarios,
+        ano
+      );
+
+      res.json(resultado);
+    } catch (error: any) {
+      console.error('Error al calcular amortización:', error);
+      
+      if (error.message) {
+        return res.status(400).json({ message: error.message });
+      }
+      
+      res.status(500).json({ message: 'Error al calcular amortización' });
     }
   });
 

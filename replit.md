@@ -12,6 +12,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 28, 2025 - Fase 1D: Amortization Calculation**
+- Created `documentos_adquisicion` table to track all acquisition costs (purchase price, notary fees, registry fees, ITP, agency fees, improvements)
+- Extended `propiedades` table with amortization fields (valor_total_adquisicion, porcentaje_construccion, valor_amortizable, amortizacion_anual)
+- Extended `declaraciones_210` table with detailed amortization tracking fields
+- Implemented `calcularValorAmortizable` function to calculate depreciable value (construction portion only, 3% annual)
+- Implemented `calcularAmortizacion` function to calculate prorated amortization by rented days and co-owner percentage
+- Extended storage layer with CRUD methods for acquisition documents and property amortization updates
+- Implemented complete API endpoints: GET/POST /api/propiedades/:id/documentos-adquisicion, POST /api/propiedades/:id/calcular-valor-amortizable, POST /api/propiedades/:id/calcular-amortizacion
+- Backend functionality complete and operational for tax amortization calculations
+
 **October 28, 2025 - Fase 1C: Contract Management & Rental Tracking**
 - Created `contratos_alquiler` table for rental contract tracking with tenant information, dates, rent, and business status
 - Created `pagos_alquiler` table for payment tracking with status management and year filtering
@@ -83,6 +93,9 @@ Preferred communication style: Simple, everyday language.
 - `/api/propiedades/:id/calcular-imputacion` - Calculate and save Modelo 210 declarations (POST)
 - `/api/propiedades/:id/contratos` - Rental contracts for property (GET/POST)
 - `/api/propiedades/:id/dias-alquilados` - Calculate rented days per year with overlap detection (GET)
+- `/api/propiedades/:id/documentos-adquisicion` - Acquisition documents for property (GET/POST)
+- `/api/propiedades/:id/calcular-valor-amortizable` - Calculate depreciable value from acquisition costs (POST)
+- `/api/propiedades/:id/calcular-amortizacion` - Calculate annual amortization prorated by days and ownership (POST)
 - `/api/contratos/:id` - Individual contract operations (GET/PUT)
 - `/api/contratos/:id/cancelar` - Cancel contract with reason (PUT)
 - `/api/contratos/:id/pagos` - Rental payments for contract (GET/POST)
@@ -103,14 +116,15 @@ Preferred communication style: Simple, everyday language.
 
 **Schema Design:**
 - `clientes` table: Client information (NIE, name, contact details, Polish address)
-- `propiedades` table: Property details (cadastral reference, address, purchase info, cadastral values)
+- `propiedades` table: Property details (cadastral reference, address, purchase info, cadastral values, amortization calculations)
 - `propiedad_copropietarios` junction table: Co-ownership relationships with percentage shares
-- `declaraciones_210` table: Stored tax declarations with calculation details, formulas, and results
+- `declaraciones_210` table: Stored tax declarations with calculation details, formulas, results, and detailed amortization tracking
 - `contratos_alquiler` table: Rental contract management with tenant info, dates, rent, payment terms, and business status (activo/finalizado/cancelado/renovado)
 - `pagos_alquiler` table: Payment tracking with monthly/annual organization, status tracking (pendiente/pagado/atrasado/impagado), and document references
+- `documentos_adquisicion` table: Acquisition cost documentation (purchase price, notary, registry, ITP, improvements) with validation status
 - Soft deletion pattern (activo/activa boolean flags for clients and properties)
 - Business status fields for contracts and payments (estado column with predefined values)
-- Indexed fields for common queries (NIE, client names, declaration types, declaration year, contract status)
+- Indexed fields for common queries (NIE, client names, declaration types, declaration year, contract status, acquisition document types)
 
 **Data Access Pattern:**
 - Storage abstraction layer (IStorage interface) in server/storage.ts
