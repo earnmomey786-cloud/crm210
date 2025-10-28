@@ -101,7 +101,7 @@ export function calcularValorAmortizable(
     else if (doc.tipo === 'iva_compra') desglose.iva_compra += importe;
     else if (doc.tipo === 'gastos_biuro_compra') desglose.gastos_biuro_compra += importe;
     else if (doc.tipo === 'gastos_agencia') desglose.gastos_agencia += importe;
-    else if (doc.tipo === 'mejora') desglose.mejoras += importe;
+    else if (doc.tipo === 'mejoras') desglose.mejoras += importe;
   }
 
   // Suma total de adquisición
@@ -126,18 +126,26 @@ export function calcularValorAmortizable(
     );
   }
 
-  // Validación: suelo + construcción = total
-  const suma_catastral = valor_catastral_suelo + valor_catastral_construccion;
-  if (Math.abs(suma_catastral - valor_catastral_total) > 0.01) {
-    throw new Error(
-      `ERROR: Suelo (${valor_catastral_suelo.toFixed(2)}€) + ` +
-      `Construcción (${valor_catastral_construccion.toFixed(2)}€) ` +
-      `≠ Total (${valor_catastral_total.toFixed(2)}€)`
-    );
-  }
-
   // Calcular % construcción
-  const porcentaje_construccion = valor_catastral_construccion / valor_catastral_total;
+  let porcentaje_construccion: number;
+  
+  // Si hay desglose catastral, usar esos valores
+  const suma_catastral = valor_catastral_suelo + valor_catastral_construccion;
+  if (suma_catastral > 0.01) {
+    // Validación: suelo + construcción debe aproximadamente = total
+    if (Math.abs(suma_catastral - valor_catastral_total) > 0.01) {
+      throw new Error(
+        `ERROR: Suelo (${valor_catastral_suelo.toFixed(2)}€) + ` +
+        `Construcción (${valor_catastral_construccion.toFixed(2)}€) ` +
+        `≠ Total (${valor_catastral_total.toFixed(2)}€)`
+      );
+    }
+    porcentaje_construccion = valor_catastral_construccion / valor_catastral_total;
+  } else {
+    // Si no hay desglose catastral, usar porcentaje por defecto 70% construcción
+    // (valor típico en España para viviendas)
+    porcentaje_construccion = 0.70;
+  }
 
   // PASO 3: Calcular valor amortizable
   // Solo se amortiza la CONSTRUCCIÓN (no el suelo)

@@ -754,45 +754,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const propiedadId = parseInt(req.params.id);
 
+      console.log('[DOCS] Request body:', JSON.stringify(req.body, null, 2));
+
       const propiedad = await storage.getPropiedad(propiedadId);
       if (!propiedad) {
         return res.status(404).json({ message: 'Propiedad no encontrada' });
       }
 
-      const { documentos } = req.body;
+      const documentoData = {
+        tipo: req.body.tipo,
+        descripcion: req.body.descripcion,
+        importe: typeof req.body.importe === 'number' ? req.body.importe.toString() : req.body.importe,
+        fechaDocumento: req.body.fechaDocumento,
+      };
 
-      if (!Array.isArray(documentos) || documentos.length === 0) {
-        return res.status(400).json({ message: 'Debe proporcionar al menos un documento' });
-      }
+      console.log('[DOCS] Prepared data for validation:', JSON.stringify(documentoData, null, 2));
 
-      const validationErrors: string[] = [];
-      for (let i = 0; i < documentos.length; i++) {
-        const validation = insertDocumentoAdquisicionSchema.safeParse(documentos[i]);
-        if (!validation.success) {
-          const errorMessage = fromZodError(validation.error).toString();
-          validationErrors.push(`Documento ${i + 1}: ${errorMessage}`);
-        }
-      }
-
-      if (validationErrors.length > 0) {
+      const validation = insertDocumentoAdquisicionSchema.safeParse(documentoData);
+      if (!validation.success) {
+        const errorMessage = fromZodError(validation.error).toString();
+        console.log('[DOCS] Validation failed:', errorMessage);
+        console.log('[DOCS] Validation errors:', JSON.stringify(validation.error.errors, null, 2));
         return res.status(400).json({ 
-          message: 'Errores de validación',
-          errors: validationErrors 
+          message: 'Error de validación',
+          error: errorMessage 
         });
       }
 
-      const documentosCreados = await storage.createDocumentos(propiedadId, documentos);
-      
-      const valorTotalAdquisicion = documentosCreados.reduce((sum, doc) => sum + parseFloat(doc.importe), 0);
+      const documentoConPropiedad = {
+        ...validation.data,
+        idPropiedad: propiedadId,
+      };
 
-      res.status(201).json({
-        id_propiedad: propiedadId,
-        documentos_registrados: documentosCreados.length,
-        valor_total_adquisicion: valorTotalAdquisicion,
-        mensaje: 'Documentos registrados correctamente'
-      });
+      console.log('[DOCS] Creating document:', JSON.stringify(documentoConPropiedad, null, 2));
+
+      const documentosCreados = await storage.createDocumentos(propiedadId, [documentoConPropiedad]);
+      
+      const documentoCreado = documentosCreados[0];
+
+      console.log('[DOCS] Document created successfully:', documentoCreado.idDocumento);
+
+      res.status(201).json(documentoCreado);
     } catch (error: any) {
-      console.error('Error al registrar documentos:', error);
+      console.error('[DOCS] Error al registrar documentos:', error);
       res.status(500).json({ message: 'Error al registrar documentos' });
     }
   });

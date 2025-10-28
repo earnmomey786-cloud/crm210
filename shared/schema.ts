@@ -418,6 +418,7 @@ export const insertPagoAlquilerSchema = createInsertSchema(pagosAlquiler).omit({
 
 export const insertDocumentoAdquisicionSchema = createInsertSchema(documentosAdquisicion).omit({
   idDocumento: true,
+  idPropiedad: true,
   fechaAlta: true,
   validado: true,
   fechaValidacion: true,
@@ -430,7 +431,7 @@ export const insertDocumentoAdquisicionSchema = createInsertSchema(documentosAdq
     'iva_compra',
     'gastos_biuro_compra',
     'gastos_agencia',
-    'mejora'
+    'mejoras'
   ]),
   descripcion: z.string().min(1, "Descripción es requerida").max(500),
   importe: z.string().min(1, "Importe es requerido"),
