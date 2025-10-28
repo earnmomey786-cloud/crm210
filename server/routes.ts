@@ -742,15 +742,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const documentos = await storage.getDocumentosByPropiedad(propiedadId);
-      
-      const sumaTotal = documentos.reduce((sum, doc) => sum + parseFloat(doc.importe), 0);
 
-      res.json({
-        id_propiedad: propiedadId,
-        documentos,
-        total_documentos: documentos.length,
-        suma_total: sumaTotal
-      });
+      res.json(documentos);
     } catch (error: any) {
       console.error('Error al obtener documentos:', error);
       res.status(500).json({ message: 'Error al obtener documentos' });

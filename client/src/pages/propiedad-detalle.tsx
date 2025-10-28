@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
-import { ChevronLeft, Home, MapPin, Calendar, DollarSign, FileText, Users, Edit, Calculator } from "lucide-react";
+import { ChevronLeft, Home, MapPin, Calendar, DollarSign, FileText, Users, Edit, Calculator, TrendingDown, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,10 +10,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NuevaPropiedadDialog } from "@/components/nueva-propiedad-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Propiedad, Cliente, Copropietario } from "@shared/schema";
+import type { Propiedad, Cliente, Copropietario, DocumentoAdquisicion } from "@shared/schema";
 import type { Modelo210ImputacionResult } from "@shared/modelo210-calc";
 import { formatEuros, formatPercentage } from "@shared/modelo210-calc";
 
@@ -46,6 +47,17 @@ export default function PropiedadDetalle() {
   const [ano, setAno] = useState(currentYear.toString());
   const [dias, setDias] = useState("365");
   const [porcentajeAplicado, setPorcentajeAplicado] = useState("");
+  
+  const [showDocForm, setShowDocForm] = useState(false);
+  const [docTipo, setDocTipo] = useState("");
+  const [docDescripcion, setDocDescripcion] = useState("");
+  const [docImporte, setDocImporte] = useState("");
+  const [docFecha, setDocFecha] = useState("");
+  
+  const [showAmortizacionForm, setShowAmortizacionForm] = useState(false);
+  const [anoAmortizacion, setAnoAmortizacion] = useState(currentYear.toString());
+  const [resultadoAmortizacion, setResultadoAmortizacion] = useState<any>(null);
+  
   const { toast } = useToast();
 
   const { data: propiedad, isLoading: loadingPropiedad } = useQuery<Propiedad>({
@@ -59,6 +71,10 @@ export default function PropiedadDetalle() {
 
   const { data: copropietarios, isLoading: loadingCopropietarios} = useQuery<Array<Copropietario & { cliente: Cliente }>>({
     queryKey: ['/api/propiedades', propiedadId, 'copropietarios'],
+  });
+
+  const { data: documentos, isLoading: loadingDocumentos } = useQuery<DocumentoAdquisicion[]>({
+    queryKey: ['/api/propiedades', propiedadId, 'documentos-adquisicion'],
   });
 
   const calcularModelo210Mutation = useMutation({
@@ -142,6 +158,120 @@ export default function PropiedadDetalle() {
     },
   });
 
+  const agregarDocumentoMutation = useMutation({
+    mutationFn: async () => {
+      if (!docTipo) {
+        throw new Error('Debe seleccionar un tipo de documento');
+      }
+      if (!docDescripcion.trim()) {
+        throw new Error('La descripción no puede estar vacía');
+      }
+      const importeNum = parseFloat(docImporte);
+      if (isNaN(importeNum) || importeNum <= 0) {
+        throw new Error('El importe debe ser un número mayor que 0');
+      }
+      if (!docFecha) {
+        throw new Error('Debe seleccionar una fecha');
+      }
+
+      const response = await apiRequest(
+        'POST',
+        `/api/propiedades/${propiedadId}/documentos-adquisicion`,
+        {
+          tipo: docTipo,
+          descripcion: docDescripcion.trim(),
+          importe: importeNum,
+          fechaDocumento: docFecha,
+        }
+      );
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['/api/propiedades', propiedadId, 'documentos-adquisicion'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/propiedades', propiedadId],
+      });
+      toast({
+        title: "Documento agregado",
+        description: "El documento de adquisición se agregó correctamente.",
+      });
+      setShowDocForm(false);
+      setDocTipo("");
+      setDocDescripcion("");
+      setDocImporte("");
+      setDocFecha("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error al agregar documento",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const calcularValorAmortizableMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(
+        'POST',
+        `/api/propiedades/${propiedadId}/calcular-valor-amortizable`,
+        {}
+      );
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['/api/propiedades', propiedadId],
+      });
+      toast({
+        title: "Valor amortizable calculado",
+        description: "El valor amortizable se ha calculado correctamente.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error al calcular",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const calcularAmortizacionMutation = useMutation({
+    mutationFn: async () => {
+      const anoNum = parseInt(anoAmortizacion);
+      if (isNaN(anoNum) || anoNum < 2000 || anoNum > 2100) {
+        throw new Error('El año debe estar entre 2000 y 2100');
+      }
+
+      const response = await apiRequest(
+        'POST',
+        `/api/propiedades/${propiedadId}/calcular-amortizacion`,
+        { ano: anoNum }
+      );
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      setResultadoAmortizacion(data);
+      queryClient.invalidateQueries({
+        queryKey: ['/api/propiedades', propiedadId],
+      });
+      toast({
+        title: "Amortización calculada",
+        description: `Amortización prorrateada para ${anoAmortizacion} calculada correctamente.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error al calcular",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const getTipoDeclaracionColor = (tipo: string) => {
     switch (tipo) {
       case 'imputacion':
@@ -175,6 +305,31 @@ export default function PropiedadDetalle() {
       day: 'numeric',
     });
   };
+
+  const getTipoDocumentoLabel = (tipo: string) => {
+    const labels: Record<string, string> = {
+      precio_compra: "Precio de Compra",
+      gastos_notario: "Gastos de Notaría",
+      gastos_registro: "Gastos de Registro",
+      itp: "ITP (Impuesto de Transmisiones)",
+      iva_compra: "IVA de Compra",
+      gastos_biuro_compra: "Gastos de Gestoría",
+      gastos_agencia: "Gastos de Agencia",
+      mejoras: "Mejoras",
+    };
+    return labels[tipo] || tipo;
+  };
+
+  const tiposDocumento = [
+    { value: "precio_compra", label: "Precio de Compra" },
+    { value: "gastos_notario", label: "Gastos de Notaría" },
+    { value: "gastos_registro", label: "Gastos de Registro" },
+    { value: "itp", label: "ITP (Impuesto de Transmisiones)" },
+    { value: "iva_compra", label: "IVA de Compra" },
+    { value: "gastos_biuro_compra", label: "Gastos de Gestoría" },
+    { value: "gastos_agencia", label: "Gastos de Agencia" },
+    { value: "mejoras", label: "Mejoras" },
+  ];
 
   if (loadingPropiedad || loadingCliente) {
     return (
@@ -342,6 +497,347 @@ export default function PropiedadDetalle() {
                 </div>
               </div>
             )}
+
+            <div className="pt-6 border-t border-border" data-testid="section-amortizacion">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-card-foreground flex items-center gap-2" data-testid="titulo-amortizacion">
+                  <TrendingDown className="w-5 h-5 text-primary" />
+                  Amortización Fiscal
+                </h2>
+                {documentos && documentos.length > 0 && (
+                  <Button
+                    onClick={() => calcularValorAmortizableMutation.mutate()}
+                    disabled={calcularValorAmortizableMutation.isPending}
+                    size="sm"
+                    variant="outline"
+                    data-testid="button-calcular-amortizable"
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${calcularValorAmortizableMutation.isPending ? 'animate-spin' : ''}`} />
+                    Recalcular
+                  </Button>
+                )}
+              </div>
+
+              {propiedad.valorAmortizable && (
+                <div className="space-y-4 mb-6">
+                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg" data-testid="card-valores-amortizacion">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Valor Amortizable (Construcción)</p>
+                        <p className="font-semibold text-lg text-card-foreground" data-testid="text-valor-amortizable">
+                          {formatCurrency(propiedad.valorAmortizable)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Amortización Anual (3%)</p>
+                        <p className="font-semibold text-lg text-primary" data-testid="text-amortizacion-anual">
+                          {formatCurrency(propiedad.amortizacionAnual || "0")}
+                        </p>
+                      </div>
+                      {propiedad.porcentajeConstruccion && (
+                        <div className="col-span-2">
+                          <p className="text-xs text-muted-foreground" data-testid="text-porcentaje-construccion">
+                            Construcción: {propiedad.porcentajeConstruccion}% del valor total de adquisición
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {(propiedad.tipoDeclaracion === 'alquiler' || propiedad.tipoDeclaracion === 'mixta') && (
+                    <div className="p-4 bg-muted/30 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-medium text-card-foreground">Calcular Amortización Prorrateada</h3>
+                        {!showAmortizacionForm && (
+                          <Button
+                            onClick={() => setShowAmortizacionForm(true)}
+                            size="sm"
+                            variant="outline"
+                            data-testid="button-mostrar-form-amortizacion"
+                          >
+                            <Calculator className="w-4 h-4 mr-2" />
+                            Calcular
+                          </Button>
+                        )}
+                      </div>
+
+                      {showAmortizacionForm && (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            calcularAmortizacionMutation.mutate();
+                          }}
+                          className="space-y-3"
+                        >
+                          <div>
+                            <Label htmlFor="ano-amortizacion" className="text-sm font-medium">
+                              Año Fiscal
+                            </Label>
+                            <Input
+                              id="ano-amortizacion"
+                              type="number"
+                              value={anoAmortizacion}
+                              onChange={(e) => setAnoAmortizacion(e.target.value)}
+                              min="2000"
+                              max="2100"
+                              required
+                              data-testid="input-ano-amortizacion"
+                              className="rounded-lg"
+                            />
+                          </div>
+
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => {
+                                setShowAmortizacionForm(false);
+                                setResultadoAmortizacion(null);
+                              }}
+                              data-testid="button-cancelar-amortizacion"
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              type="submit"
+                              disabled={calcularAmortizacionMutation.isPending}
+                              data-testid="button-calcular-amortizacion"
+                            >
+                              {calcularAmortizacionMutation.isPending ? "Calculando..." : "Calcular"}
+                            </Button>
+                          </div>
+                        </form>
+                      )}
+
+                      {resultadoAmortizacion && (
+                        <div className="mt-4 space-y-3" data-testid="resultado-amortizacion">
+                          <div className="p-3 bg-background rounded-lg border border-border" data-testid="card-dias-alquilados">
+                            <p className="text-xs text-muted-foreground mb-2">Días Alquilados en {resultadoAmortizacion.ano}</p>
+                            <p className="font-semibold text-card-foreground" data-testid="text-dias-alquilados">
+                              {resultadoAmortizacion.diasAlquilados} días
+                            </p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium text-card-foreground">Amortización por Copropietario:</p>
+                            {resultadoAmortizacion.copropietarios.map((cop: any, index: number) => (
+                              <div
+                                key={index}
+                                className="p-3 bg-background rounded-lg border border-border"
+                                data-testid={`amortizacion-coprop-${index}`}
+                              >
+                                <div className="flex justify-between items-start mb-2">
+                                  <div>
+                                    <p className="font-medium text-sm text-card-foreground" data-testid={`text-coprop-nombre-${index}`}>{cop.nombre}</p>
+                                    <p className="text-xs text-muted-foreground" data-testid={`text-coprop-porcentaje-${index}`}>
+                                      {cop.porcentaje_participacion}% participación
+                                    </p>
+                                  </div>
+                                  <Badge variant="secondary" className="font-semibold" data-testid={`badge-coprop-amortizacion-${index}`}>
+                                    {formatCurrency(cop.amortizacion_anual_prorrateada)}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground font-mono bg-muted/30 p-2 rounded" data-testid={`text-coprop-formula-${index}`}>
+                                  {cop.formula}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="p-3 bg-primary/10 rounded-lg border border-primary/20" data-testid="card-total-amortizacion">
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-card-foreground">Total Amortización {resultadoAmortizacion.ano}</span>
+                              <span className="font-bold text-lg text-primary" data-testid="text-total-amortizacion">
+                                {formatCurrency(resultadoAmortizacion.total_amortizacion)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="mb-4" data-testid="section-documentos-adquisicion">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium text-card-foreground" data-testid="titulo-documentos">Documentos de Adquisición</h3>
+                  {!showDocForm && (
+                    <Button
+                      onClick={() => setShowDocForm(true)}
+                      size="sm"
+                      variant="outline"
+                      data-testid="button-agregar-documento"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Agregar Documento
+                    </Button>
+                  )}
+                </div>
+
+                {showDocForm && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      agregarDocumentoMutation.mutate();
+                    }}
+                    className="mb-4 p-4 bg-muted/30 rounded-lg space-y-3"
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <Label htmlFor="doc-tipo" className="text-sm font-medium">
+                          Tipo de Documento
+                        </Label>
+                        <Select value={docTipo} onValueChange={setDocTipo} required>
+                          <SelectTrigger id="doc-tipo" data-testid="select-tipo-documento" className="rounded-lg">
+                            <SelectValue placeholder="Seleccionar tipo..." />
+                          </SelectTrigger>
+                          <SelectContent data-testid="select-tipo-documento-content">
+                            {tiposDocumento.map((tipo) => (
+                              <SelectItem key={tipo.value} value={tipo.value} data-testid={`select-item-${tipo.value}`}>
+                                {tipo.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="col-span-2">
+                        <Label htmlFor="doc-descripcion" className="text-sm font-medium">
+                          Descripción
+                        </Label>
+                        <Input
+                          id="doc-descripcion"
+                          type="text"
+                          value={docDescripcion}
+                          onChange={(e) => setDocDescripcion(e.target.value)}
+                          required
+                          placeholder="Ej: Escritura pública notarial"
+                          data-testid="input-doc-descripcion"
+                          className="rounded-lg"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="doc-importe" className="text-sm font-medium">
+                          Importe (€)
+                        </Label>
+                        <Input
+                          id="doc-importe"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={docImporte}
+                          onChange={(e) => setDocImporte(e.target.value)}
+                          required
+                          placeholder="0.00"
+                          data-testid="input-doc-importe"
+                          className="rounded-lg"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="doc-fecha" className="text-sm font-medium">
+                          Fecha del Documento
+                        </Label>
+                        <Input
+                          id="doc-fecha"
+                          type="date"
+                          value={docFecha}
+                          onChange={(e) => setDocFecha(e.target.value)}
+                          required
+                          data-testid="input-doc-fecha"
+                          className="rounded-lg"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          setShowDocForm(false);
+                          setDocTipo("");
+                          setDocDescripcion("");
+                          setDocImporte("");
+                          setDocFecha("");
+                        }}
+                        data-testid="button-cancelar-documento"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={agregarDocumentoMutation.isPending}
+                        data-testid="button-guardar-documento"
+                      >
+                        {agregarDocumentoMutation.isPending ? "Guardando..." : "Guardar Documento"}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+
+                {loadingDocumentos ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                  </div>
+                ) : !documentos || documentos.length === 0 ? (
+                  <div className="text-center py-8 bg-muted/20 rounded-lg" data-testid="estado-vacio-documentos">
+                    <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground" data-testid="text-sin-documentos">
+                      No hay documentos de adquisición registrados
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Agrega documentos para calcular el valor amortizable
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {documentos.map((doc) => (
+                      <div
+                        key={doc.idDocumento}
+                        className="flex justify-between items-center p-3 bg-muted/20 rounded-lg hover-elevate"
+                        data-testid={`documento-${doc.idDocumento}`}
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium text-sm text-card-foreground">
+                            {getTipoDocumentoLabel(doc.tipo)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {doc.descripcion}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDate(doc.fechaDocumento)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-card-foreground">
+                            {formatCurrency(doc.importe)}
+                          </p>
+                          {doc.validado && (
+                            <Badge variant="secondary" className="text-xs mt-1">
+                              Validado
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg border border-primary/20" data-testid="card-total-documentos">
+                      <span className="font-semibold text-card-foreground">Total Adquisición</span>
+                      <span className="font-bold text-lg text-primary" data-testid="text-total-documentos">
+                        {formatCurrency(
+                          documentos
+                            .reduce((sum, doc) => sum + parseFloat(doc.importe), 0)
+                            .toFixed(2)
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {propiedad.notas && (
               <div className="pt-6 border-t border-border">
