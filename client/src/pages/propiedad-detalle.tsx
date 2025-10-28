@@ -77,14 +77,17 @@ export default function PropiedadDetalle() {
         throw new Error('El porcentaje debe estar entre 0 y 100');
       }
 
-      return await apiRequest(`/api/propiedades/${propiedadId}/calcular-imputacion`, {
-        method: 'POST',
-        body: JSON.stringify({ 
+      const response = await apiRequest(
+        'POST',
+        `/api/propiedades/${propiedadId}/calcular-imputacion`,
+        { 
           ano: anoNum, 
           dias: diasNum,
           porcentajeAplicado: porcentajeNum
-        }),
-      });
+        }
+      );
+      
+      return await response.json();
     },
     onSuccess: (data: ResultadoCalculo) => {
       // Mostrar los detalles del cálculo de la primera declaración (propietario principal)

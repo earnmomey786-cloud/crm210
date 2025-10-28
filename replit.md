@@ -12,6 +12,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 28, 2025 - Fase 1B: Calculation Storage & History**
+- Created `declaraciones_210` database table to store declaration history with full calculation details
+- Enhanced calculation module to accept custom parameters (año, días, porcentaje aplicado)
+- Implemented POST endpoint to calculate and save declarations for all co-owners automatically
+- Implemented GET endpoint to retrieve client declaration history with year filtering
+- Updated property detail page with complete calculation form (year, days, percentage)
+- Added declaration history section to client page with year filter and total summary
+- Calculations now display immediately after saving and refresh client history automatically
+- Formula and detailed breakdown shown for each saved calculation
+
 **October 28, 2025 - Soft Pastel Design Implementation**
 - Applied exact soft pastel color scheme from reference design
 - Background: Soft grayish-blue (#c5d0db, hsl(210 18% 82%))
@@ -57,8 +67,11 @@ Preferred communication style: Simple, everyday language.
 **API Structure:**
 - `/api/clientes` - Client CRUD operations
 - `/api/clientes/:id/propiedades` - Properties by client
+- `/api/clientes/:id/declaraciones` - Client declaration history with year filtering
 - `/api/propiedades/:id` - Individual property operations
 - `/api/propiedades/:id/copropietarios` - Co-owner management
+- `/api/propiedades/:id/modelo210` - Calculate Modelo 210 (GET - preview only)
+- `/api/propiedades/:id/calcular-imputacion` - Calculate and save Modelo 210 declarations (POST)
 
 **Request/Response Handling:**
 - JSON body parsing with raw body preservation
@@ -77,8 +90,9 @@ Preferred communication style: Simple, everyday language.
 - `clientes` table: Client information (NIE, name, contact details, Polish address)
 - `propiedades` table: Property details (cadastral reference, address, purchase info, cadastral values)
 - `propiedad_copropietarios` junction table: Co-ownership relationships with percentage shares
+- `declaraciones_210` table: Stored tax declarations with calculation details, formulas, and results
 - Soft deletion pattern (activo/activa boolean flags)
-- Indexed fields for common queries (NIE, client names, declaration types)
+- Indexed fields for common queries (NIE, client names, declaration types, declaration year)
 
 **Data Access Pattern:**
 - Storage abstraction layer (IStorage interface) in server/storage.ts
