@@ -1,11 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClienteSchema, insertPropiedadSchema, insertContratoAlquilerSchema, insertPagoAlquilerSchema, insertDocumentoAdquisicionSchema, contratosAlquiler, pagosAlquiler } from "@shared/schema";
+import { insertClienteSchema, insertPropiedadSchema, insertContratoAlquilerSchema, insertPagoAlquilerSchema, insertDocumentoAdquisicionSchema, insertGastoSchema, contratosAlquiler, pagosAlquiler, gastos } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { calcularModelo210Imputacion } from "@shared/modelo210-calc";
 import { calcularDiasAlquilados } from "@shared/contratos-calc";
 import { calcularValorAmortizable, calcularAmortizacion } from "@shared/amortizacion-calc";
+import { calcularGastosDeducibles, verificarRentaNegativa } from "@shared/gastos-calc";
 import { z } from "zod";
 import { createInsertSchema } from "drizzle-zod";
 
@@ -877,6 +878,278 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(500).json({ message: 'Error al calcular amortización' });
+    }
+  });
+
+  // Endpoints de gestión de gastos (Fase 1E)
+  
+  // 1. POST /api/propiedades/:id/gastos - Registrar gasto
+  app.post('/api/propiedades/:id/gastos', async (req, res) => {
+    try {
+      const propiedadId = parseInt(req.params.id);
+      
+      const propiedad = await storage.getPropiedad(propiedadId);
+      if (!propiedad) {
+        return res.status(404).json({ message: 'Propiedad no encontrada' });
+      }
+
+      const validatedData = insertGastoSchema.parse({
+        ...req.body,
+        idPropiedad: propiedadId
+      });
+
+      const gasto = await storage.createGasto(validatedData);
+      res.status(201).json(gasto);
+    } catch (error: any) {
+      console.error('Error al crear gasto:', error);
+      
+      if (error.name === 'ZodError') {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      
+      res.status(500).json({ message: 'Error al crear gasto' });
+    }
+  });
+
+  // 2. GET /api/propiedades/:id/gastos - Listar gastos
+  app.get('/api/propiedades/:id/gastos', async (req, res) => {
+    try {
+      const propiedadId = parseInt(req.params.id);
+      const ano = req.query.ano ? parseInt(req.query.ano as string) : undefined;
+      const soloValidados = req.query.soloValidados === 'true';
+      
+      const propiedad = await storage.getPropiedad(propiedadId);
+      if (!propiedad) {
+        return res.status(404).json({ message: 'Propiedad no encontrada' });
+      }
+
+      const gastos = await storage.getGastosByPropiedad(propiedadId, ano, soloValidados);
+      res.json(gastos);
+    } catch (error: any) {
+      console.error('Error al obtener gastos:', error);
+      res.status(500).json({ message: 'Error al obtener gastos' });
+    }
+  });
+
+  // 3. POST /api/propiedades/:id/calcular-gastos-deducibles - Calcular gastos deducibles
+  app.post('/api/propiedades/:id/calcular-gastos-deducibles', async (req, res) => {
+    try {
+      const propiedadId = parseInt(req.params.id);
+      const { ano } = req.body;
+
+      if (!ano || typeof ano !== 'number') {
+        return res.status(400).json({ message: 'Debe proporcionar el año' });
+      }
+
+      const propiedad = await storage.getPropiedad(propiedadId);
+      if (!propiedad) {
+        return res.status(404).json({ message: 'Propiedad no encontrada' });
+      }
+
+      const gastosValidados = await storage.getGastosByPropiedad(propiedadId, ano, true);
+      const contratos = await storage.getContratosByPropiedad(propiedadId);
+      const diasResult = calcularDiasAlquilados(contratos, ano);
+
+      const resultado = calcularGastosDeducibles(
+        gastosValidados,
+        diasResult.totalDiasAlquilados,
+        ano
+      );
+
+      res.json(resultado);
+    } catch (error: any) {
+      console.error('Error al calcular gastos deducibles:', error);
+      
+      if (error.message) {
+        return res.status(400).json({ message: error.message });
+      }
+      
+      res.status(500).json({ message: 'Error al calcular gastos deducibles' });
+    }
+  });
+
+  // 4. POST /api/propiedades/:id/verificar-renta-negativa - Detectar renta negativa
+  app.post('/api/propiedades/:id/verificar-renta-negativa', async (req, res) => {
+    try {
+      const propiedadId = parseInt(req.params.id);
+      const { ano, idCliente } = req.body;
+
+      if (!ano || typeof ano !== 'number') {
+        return res.status(400).json({ message: 'Debe proporcionar el año' });
+      }
+
+      if (!idCliente || typeof idCliente !== 'number') {
+        return res.status(400).json({ message: 'Debe proporcionar el ID del cliente' });
+      }
+
+      const propiedad = await storage.getPropiedad(propiedadId);
+      if (!propiedad) {
+        return res.status(404).json({ message: 'Propiedad no encontrada' });
+      }
+
+      const gastosValidados = await storage.getGastosByPropiedad(propiedadId, ano, true);
+      const contratos = await storage.getContratosByPropiedad(propiedadId);
+      const diasResult = calcularDiasAlquilados(contratos, ano);
+      const gastosDeducibles = calcularGastosDeducibles(
+        gastosValidados,
+        diasResult.totalDiasAlquilados,
+        ano
+      );
+
+      const pagos = [];
+      for (const contrato of contratos) {
+        const contratoActivo = contrato.estado === 'activo' || 
+                               (contrato.fechaInicio <= `${ano}-12-31` && 
+                                (!contrato.fechaFin || contrato.fechaFin >= `${ano}-01-01`));
+        if (contratoActivo) {
+          const pagosList = await storage.getPagosByContrato(contrato.idContrato, ano);
+          pagos.push(...pagosList);
+        }
+      }
+
+      const copropietariosData = await storage.getCopropietariosByPropiedad(propiedadId);
+      const copropietario = copropietariosData.find(c => c.idCliente === idCliente);
+      
+      if (!copropietario) {
+        return res.status(404).json({ message: 'Copropietario no encontrado en esta propiedad' });
+      }
+
+      const porcentajeParticipacion = parseFloat(copropietario.porcentaje);
+      
+      const totalIngresos = pagos.reduce((sum, pago) => {
+        if (pago.estado === 'pagado') {
+          return sum + parseFloat(pago.importe);
+        }
+        return sum;
+      }, 0);
+
+      const ingresosPropiedad = totalIngresos * (porcentajeParticipacion / 100);
+      
+      const amortizacionAnual = propiedad.amortizacionAnual 
+        ? parseFloat(propiedad.amortizacionAnual) 
+        : 0;
+
+      const amortizacionPropiedad = diasResult.totalDiasAlquilados > 0 && amortizacionAnual > 0
+        ? (amortizacionAnual * diasResult.totalDiasAlquilados / 365) * (porcentajeParticipacion / 100)
+        : 0;
+
+      const resultado = verificarRentaNegativa(
+        ingresosPropiedad,
+        gastosDeducibles.totalGastosDeducibles,
+        amortizacionPropiedad,
+        gastosValidados
+      );
+
+      if (resultado.tieneRentaNegativa && resultado.importeRentaNegativa > 0) {
+        await storage.createRentaNegativa({
+          idCliente,
+          idPropiedad: propiedadId,
+          anoOrigen: ano,
+          importeNegativo: resultado.importeRentaNegativa.toFixed(2),
+          concepto: resultado.concepto as "reparaciones" | "intereses" | "mixto",
+          observaciones: resultado.observaciones,
+          estado: 'pendiente'
+        });
+      }
+
+      res.json(resultado);
+    } catch (error: any) {
+      console.error('Error al verificar renta negativa:', error);
+      
+      if (error.message) {
+        return res.status(400).json({ message: error.message });
+      }
+      
+      res.status(500).json({ message: 'Error al verificar renta negativa' });
+    }
+  });
+
+  // 5. GET /api/clientes/:id/rentas-negativas-pendientes - Listar rentas negativas pendientes
+  app.get('/api/clientes/:id/rentas-negativas-pendientes', async (req, res) => {
+    try {
+      const clienteId = parseInt(req.params.id);
+      
+      const cliente = await storage.getCliente(clienteId);
+      if (!cliente) {
+        return res.status(404).json({ message: 'Cliente no encontrado' });
+      }
+
+      const rentasNegativas = await storage.getRentasNegativasByCliente(clienteId, 'pendiente');
+      res.json(rentasNegativas);
+    } catch (error: any) {
+      console.error('Error al obtener rentas negativas:', error);
+      res.status(500).json({ message: 'Error al obtener rentas negativas' });
+    }
+  });
+
+  // 6. POST /api/declaraciones/:id/aplicar-compensacion - Aplicar compensación
+  app.post('/api/declaraciones/:id/aplicar-compensacion', async (req, res) => {
+    try {
+      const declaracionId = parseInt(req.params.id);
+      const { idRentaNegativa, importeAplicado } = req.body;
+
+      if (!idRentaNegativa || typeof idRentaNegativa !== 'number') {
+        return res.status(400).json({ message: 'Debe proporcionar el ID de la renta negativa' });
+      }
+
+      if (!importeAplicado || typeof importeAplicado !== 'number' || importeAplicado <= 0) {
+        return res.status(400).json({ message: 'Debe proporcionar un importe válido' });
+      }
+
+      const declaracion = await storage.getDeclaracionesByPropiedad(
+        0, 
+        undefined
+      );
+      
+      const rentaNegativa = await storage.getRentaNegativa(idRentaNegativa);
+      if (!rentaNegativa) {
+        return res.status(404).json({ message: 'Renta negativa no encontrada' });
+      }
+
+      if (rentaNegativa.estado !== 'pendiente' && rentaNegativa.estado !== null) {
+        return res.status(400).json({ message: 'La renta negativa no está pendiente de compensación' });
+      }
+
+      const importePendiente = rentaNegativa.importePendiente ? parseFloat(rentaNegativa.importePendiente) : 0;
+      if (importeAplicado > importePendiente) {
+        return res.status(400).json({ 
+          message: `El importe a aplicar (${importeAplicado}€) excede el importe pendiente (${importePendiente}€)` 
+        });
+      }
+
+      const anoActual = new Date().getFullYear();
+      const compensacion = await storage.createCompensacion({
+        idRentaNegativa,
+        idDeclaracion: declaracionId,
+        importeCompensado: importeAplicado.toFixed(2),
+        anoCompensacion: anoActual
+      });
+
+      const nuevoEstado = (importePendiente - importeAplicado) <= 0.01 ? 'compensado' : 'pendiente';
+
+      await storage.updateRentaNegativa(idRentaNegativa, {
+        estado: nuevoEstado
+      });
+
+      const importePendienteActualizado = importePendiente - importeAplicado;
+
+      res.json({
+        compensacion,
+        renta_negativa_actualizada: {
+          id: idRentaNegativa,
+          importe_pendiente: importePendienteActualizado,
+          estado: nuevoEstado
+        }
+      });
+    } catch (error: any) {
+      console.error('Error al aplicar compensación:', error);
+      
+      if (error.message) {
+        return res.status(400).json({ message: error.message });
+      }
+      
+      res.status(500).json({ message: 'Error al aplicar compensación' });
     }
   });
 
