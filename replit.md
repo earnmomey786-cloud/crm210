@@ -32,7 +32,13 @@ Preferred communication style: Simple, everyday language.
 - Implemented `calcularAmortizacion` function to calculate prorated amortization by rented days and co-owner percentage
 - Extended storage layer with CRUD methods for acquisition documents and property amortization updates
 - Implemented complete API endpoints: GET/POST /api/propiedades/:id/documentos-adquisicion, POST /api/propiedades/:id/calcular-valor-amortizable, POST /api/propiedades/:id/calcular-amortizacion
-- Backend functionality complete and operational for tax amortization calculations
+- Implemented complete frontend UI: document list with add/edit forms, valor amortizable display, amortization calculator
+- Added comprehensive data-testid attributes to all interactive and display elements
+- **Bug Fixes (E2E Testing)**:
+  - Fixed `insertDocumentoAdquisicionSchema` to omit `idPropiedad` (added after validation from route params)
+  - Fixed document type enum to use 'mejoras' (not 'mejora') in both schema and calculation logic
+  - Fixed `calcularValorAmortizable` to handle missing catastral breakdown using 70% construction default
+- Backend and frontend functionality complete, tested, and operational
 
 **October 28, 2025 - Fase 1C: Contract Management & Rental Tracking**
 - Created `contratos_alquiler` table for rental contract tracking with tenant information, dates, rent, and business status

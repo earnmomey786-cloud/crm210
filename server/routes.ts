@@ -754,8 +754,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const propiedadId = parseInt(req.params.id);
 
-      console.log('[DOCS] Request body:', JSON.stringify(req.body, null, 2));
-
       const propiedad = await storage.getPropiedad(propiedadId);
       if (!propiedad) {
         return res.status(404).json({ message: 'Propiedad no encontrada' });
@@ -768,13 +766,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fechaDocumento: req.body.fechaDocumento,
       };
 
-      console.log('[DOCS] Prepared data for validation:', JSON.stringify(documentoData, null, 2));
-
       const validation = insertDocumentoAdquisicionSchema.safeParse(documentoData);
       if (!validation.success) {
         const errorMessage = fromZodError(validation.error).toString();
-        console.log('[DOCS] Validation failed:', errorMessage);
-        console.log('[DOCS] Validation errors:', JSON.stringify(validation.error.errors, null, 2));
         return res.status(400).json({ 
           message: 'Error de validación',
           error: errorMessage 
@@ -786,17 +780,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         idPropiedad: propiedadId,
       };
 
-      console.log('[DOCS] Creating document:', JSON.stringify(documentoConPropiedad, null, 2));
-
       const documentosCreados = await storage.createDocumentos(propiedadId, [documentoConPropiedad]);
       
       const documentoCreado = documentosCreados[0];
 
-      console.log('[DOCS] Document created successfully:', documentoCreado.idDocumento);
-
       res.status(201).json(documentoCreado);
     } catch (error: any) {
-      console.error('[DOCS] Error al registrar documentos:', error);
+      console.error('Error al registrar documentos:', error);
       res.status(500).json({ message: 'Error al registrar documentos' });
     }
   });
