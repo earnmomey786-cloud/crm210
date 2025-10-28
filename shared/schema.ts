@@ -154,10 +154,70 @@ export const documentosAdquisicion = pgTable("documentos_adquisicion", {
   tipoIdx: index("idx_doc_adq_tipo").on(table.tipo),
 }));
 
+export const gastos = pgTable("gastos", {
+  idGasto: serial("id_gasto").primaryKey(),
+  idPropiedad: integer("id_propiedad").notNull().references(() => propiedades.idPropiedad),
+  tipoGasto: varchar("tipo_gasto", { length: 50 }).notNull(),
+  esProporcional: boolean("es_proporcional").generatedAlwaysAs(sql`tipo_gasto IN ('ibi', 'comunidad', 'seguro', 'intereses_hipoteca', 'suministros', 'conservacion')`),
+  generaRentaNegativa: boolean("genera_renta_negativa").generatedAlwaysAs(sql`tipo_gasto IN ('reparacion', 'intereses_hipoteca')`),
+  descripcion: varchar("descripcion", { length: 500 }).notNull(),
+  importe: decimal("importe", { precision: 10, scale: 2 }).notNull(),
+  fechaGasto: date("fecha_gasto").notNull(),
+  fechaInicioPeriodo: date("fecha_inicio_periodo"),
+  fechaFinPeriodo: date("fecha_fin_periodo"),
+  nombreProveedor: varchar("nombre_proveedor", { length: 200 }),
+  numeroFactura: varchar("numero_factura", { length: 100 }),
+  rutaFactura: varchar("ruta_factura", { length: 500 }),
+  validado: boolean("validado").default(false).notNull(),
+  fechaValidacion: timestamp("fecha_validacion"),
+  fechaRegistro: timestamp("fecha_registro").defaultNow().notNull(),
+  usuarioRegistro: varchar("usuario_registro", { length: 100 }),
+  observaciones: text("observaciones"),
+}, (table) => ({
+  propiedadIdx: index("idx_gasto_propiedad").on(table.idPropiedad),
+  tipoIdx: index("idx_gasto_tipo").on(table.tipoGasto),
+  fechaIdx: index("idx_gasto_fecha").on(table.fechaGasto),
+  validadoIdx: index("idx_gasto_validado").on(table.validado),
+}));
+
+export const rentasNegativas = pgTable("rentas_negativas", {
+  idRentaNegativa: serial("id_renta_negativa").primaryKey(),
+  idPropiedad: integer("id_propiedad").notNull().references(() => propiedades.idPropiedad),
+  idCliente: integer("id_cliente").notNull().references(() => clientes.idCliente),
+  anoOrigen: integer("ano_origen").notNull(),
+  importeNegativo: decimal("importe_negativo", { precision: 12, scale: 2 }).notNull(),
+  concepto: varchar("concepto", { length: 50 }).notNull(),
+  importeCompensado: decimal("importe_compensado", { precision: 12, scale: 2 }).default('0.00').notNull(),
+  importePendiente: decimal("importe_pendiente", { precision: 12, scale: 2 }).generatedAlwaysAs(sql`importe_negativo - importe_compensado`),
+  anoLimite: integer("ano_limite").generatedAlwaysAs(sql`ano_origen + 4`),
+  estado: varchar("estado", { length: 20 }).default('pendiente').notNull(),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow().notNull(),
+  observaciones: text("observaciones"),
+}, (table) => ({
+  propiedadIdx: index("idx_rn_propiedad").on(table.idPropiedad),
+  clienteIdx: index("idx_rn_cliente").on(table.idCliente),
+  anoIdx: index("idx_rn_ano").on(table.anoOrigen),
+  estadoIdx: index("idx_rn_estado").on(table.estado),
+}));
+
+export const compensacionesRentasNegativas = pgTable("compensaciones_rentas_negativas", {
+  idCompensacion: serial("id_compensacion").primaryKey(),
+  idRentaNegativa: integer("id_renta_negativa").notNull().references(() => rentasNegativas.idRentaNegativa),
+  idDeclaracion: integer("id_declaracion").notNull().references(() => declaraciones210.idDeclaracion),
+  anoCompensacion: integer("ano_compensacion").notNull(),
+  importeCompensado: decimal("importe_compensado", { precision: 12, scale: 2 }).notNull(),
+  fechaCompensacion: timestamp("fecha_compensacion").defaultNow().notNull(),
+  usuario: varchar("usuario", { length: 100 }),
+}, (table) => ({
+  rentaNegativaIdx: index("idx_comp_rn").on(table.idRentaNegativa),
+  declaracionIdx: index("idx_comp_decl").on(table.idDeclaracion),
+}));
+
 export const clientesRelations = relations(clientes, ({ many }) => ({
   propiedades: many(propiedades),
   copropiedades: many(propiedadCopropietarios),
   declaraciones: many(declaraciones210),
+  rentasNegativas: many(rentasNegativas),
 }));
 
 export const propiedadesRelations = relations(propiedades, ({ one, many }) => ({
@@ -169,6 +229,8 @@ export const propiedadesRelations = relations(propiedades, ({ one, many }) => ({
   declaraciones: many(declaraciones210),
   contratos: many(contratosAlquiler),
   documentos: many(documentosAdquisicion),
+  gastos: many(gastos),
+  rentasNegativas: many(rentasNegativas),
 }));
 
 export const propiedadCopropietariosRelations = relations(propiedadCopropietarios, ({ one }) => ({
@@ -182,7 +244,7 @@ export const propiedadCopropietariosRelations = relations(propiedadCopropietario
   }),
 }));
 
-export const declaraciones210Relations = relations(declaraciones210, ({ one }) => ({
+export const declaraciones210Relations = relations(declaraciones210, ({ one, many }) => ({
   propiedad: one(propiedades, {
     fields: [declaraciones210.idPropiedad],
     references: [propiedades.idPropiedad],
@@ -191,6 +253,7 @@ export const declaraciones210Relations = relations(declaraciones210, ({ one }) =
     fields: [declaraciones210.idCliente],
     references: [clientes.idCliente],
   }),
+  compensaciones: many(compensacionesRentasNegativas),
 }));
 
 export const contratosAlquilerRelations = relations(contratosAlquiler, ({ one, many }) => ({
@@ -212,6 +275,36 @@ export const documentosAdquisicionRelations = relations(documentosAdquisicion, (
   propiedad: one(propiedades, {
     fields: [documentosAdquisicion.idPropiedad],
     references: [propiedades.idPropiedad],
+  }),
+}));
+
+export const gastosRelations = relations(gastos, ({ one }) => ({
+  propiedad: one(propiedades, {
+    fields: [gastos.idPropiedad],
+    references: [propiedades.idPropiedad],
+  }),
+}));
+
+export const rentasNegativasRelations = relations(rentasNegativas, ({ one, many }) => ({
+  propiedad: one(propiedades, {
+    fields: [rentasNegativas.idPropiedad],
+    references: [propiedades.idPropiedad],
+  }),
+  cliente: one(clientes, {
+    fields: [rentasNegativas.idCliente],
+    references: [clientes.idCliente],
+  }),
+  compensaciones: many(compensacionesRentasNegativas),
+}));
+
+export const compensacionesRentasNegativasRelations = relations(compensacionesRentasNegativas, ({ one }) => ({
+  rentaNegativa: one(rentasNegativas, {
+    fields: [compensacionesRentasNegativas.idRentaNegativa],
+    references: [rentasNegativas.idRentaNegativa],
+  }),
+  declaracion: one(declaraciones210, {
+    fields: [compensacionesRentasNegativas.idDeclaracion],
+    references: [declaraciones210.idDeclaracion],
   }),
 }));
 
@@ -346,6 +439,59 @@ export const insertDocumentoAdquisicionSchema = createInsertSchema(documentosAdq
   usuarioAlta: z.string().max(100).optional().or(z.literal('')).transform(val => val || undefined),
 });
 
+export const insertGastoSchema = createInsertSchema(gastos).omit({
+  idGasto: true,
+  fechaRegistro: true,
+  validado: true,
+  fechaValidacion: true,
+}).extend({
+  tipoGasto: z.enum([
+    'ibi',
+    'comunidad',
+    'seguro',
+    'intereses_hipoteca',
+    'suministros',
+    'conservacion',
+    'reparacion',
+    'biuro',
+    'agencia',
+    'abogado',
+    'publicidad',
+    'otro'
+  ]),
+  descripcion: z.string().min(1, "Descripción es requerida").max(500),
+  importe: z.string().min(1, "Importe es requerido"),
+  fechaGasto: z.string().min(1, "Fecha del gasto es requerida"),
+  fechaInicioPeriodo: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  fechaFinPeriodo: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+  nombreProveedor: z.string().max(200).optional().or(z.literal('')).transform(val => val || undefined),
+  numeroFactura: z.string().max(100).optional().or(z.literal('')).transform(val => val || undefined),
+  rutaFactura: z.string().max(500).optional().or(z.literal('')).transform(val => val || undefined),
+  usuarioRegistro: z.string().max(100).optional().or(z.literal('')).transform(val => val || undefined),
+  observaciones: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+});
+
+export const insertRentaNegativaSchema = createInsertSchema(rentasNegativas).omit({
+  idRentaNegativa: true,
+  importeCompensado: true,
+  fechaCreacion: true,
+}).extend({
+  anoOrigen: z.number().int().min(2020).max(2035),
+  importeNegativo: z.string().min(1, "Importe negativo es requerido"),
+  concepto: z.enum(['reparaciones', 'intereses', 'mixto']),
+  estado: z.enum(['pendiente', 'compensado', 'vencido']).optional(),
+  observaciones: z.string().optional().or(z.literal('')).transform(val => val || undefined),
+});
+
+export const insertCompensacionRentaNegativaSchema = createInsertSchema(compensacionesRentasNegativas).omit({
+  idCompensacion: true,
+  fechaCompensacion: true,
+}).extend({
+  anoCompensacion: z.number().int().min(2020).max(2035),
+  importeCompensado: z.string().min(1, "Importe compensado es requerido"),
+  usuario: z.string().max(100).optional().or(z.literal('')).transform(val => val || undefined),
+});
+
 export type InsertCliente = z.infer<typeof insertClienteSchema>;
 export type Cliente = typeof clientes.$inferSelect;
 
@@ -366,3 +512,12 @@ export type PagoAlquiler = typeof pagosAlquiler.$inferSelect;
 
 export type InsertDocumentoAdquisicion = z.infer<typeof insertDocumentoAdquisicionSchema>;
 export type DocumentoAdquisicion = typeof documentosAdquisicion.$inferSelect;
+
+export type InsertGasto = z.infer<typeof insertGastoSchema>;
+export type Gasto = typeof gastos.$inferSelect;
+
+export type InsertRentaNegativa = z.infer<typeof insertRentaNegativaSchema>;
+export type RentaNegativa = typeof rentasNegativas.$inferSelect;
+
+export type InsertCompensacionRentaNegativa = z.infer<typeof insertCompensacionRentaNegativaSchema>;
+export type CompensacionRentaNegativa = typeof compensacionesRentasNegativas.$inferSelect;
