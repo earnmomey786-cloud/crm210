@@ -3,6 +3,8 @@ import {
   propiedades, 
   propiedadCopropietarios,
   declaraciones210,
+  contratosAlquiler,
+  pagosAlquiler,
   type Cliente, 
   type InsertCliente,
   type Propiedad,
@@ -11,6 +13,10 @@ import {
   type InsertCopropietario,
   type Declaracion210,
   type InsertDeclaracion210,
+  type ContratoAlquiler,
+  type InsertContratoAlquiler,
+  type PagoAlquiler,
+  type InsertPagoAlquiler,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql, or, ilike } from "drizzle-orm";
@@ -36,6 +42,17 @@ export interface IStorage {
   createDeclaracion210(declaracion: InsertDeclaracion210): Promise<Declaracion210>;
   getDeclaracionesByCliente(clienteId: number, ano?: number): Promise<Array<Declaracion210 & { propiedad: Propiedad }>>;
   getDeclaracionesByPropiedad(propiedadId: number, ano?: number): Promise<Declaracion210[]>;
+
+  getContrato(id: number): Promise<ContratoAlquiler | undefined>;
+  getContratosByPropiedad(propiedadId: number, incluirCancelados?: boolean): Promise<ContratoAlquiler[]>;
+  createContrato(contrato: InsertContratoAlquiler): Promise<ContratoAlquiler>;
+  updateContrato(id: number, contrato: Partial<InsertContratoAlquiler>): Promise<ContratoAlquiler | undefined>;
+  cancelarContrato(id: number, motivo: string): Promise<ContratoAlquiler | undefined>;
+
+  getPago(id: number): Promise<PagoAlquiler | undefined>;
+  getPagosByContrato(contratoId: number, ano?: number): Promise<PagoAlquiler[]>;
+  createPago(pago: InsertPagoAlquiler): Promise<PagoAlquiler>;
+  updatePago(id: number, pago: Partial<InsertPagoAlquiler>): Promise<PagoAlquiler | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -222,6 +239,92 @@ export class DatabaseStorage implements IStorage {
       .from(declaraciones210)
       .where(whereConditions)
       .orderBy(sql`${declaraciones210.fechaCalculo} DESC`);
+  }
+
+  async getContrato(id: number): Promise<ContratoAlquiler | undefined> {
+    const [contrato] = await db.select().from(contratosAlquiler).where(eq(contratosAlquiler.idContrato, id));
+    return contrato || undefined;
+  }
+
+  async getContratosByPropiedad(propiedadId: number, incluirCancelados: boolean = false): Promise<ContratoAlquiler[]> {
+    const whereConditions = incluirCancelados
+      ? eq(contratosAlquiler.idPropiedad, propiedadId)
+      : and(
+          eq(contratosAlquiler.idPropiedad, propiedadId),
+          sql`${contratosAlquiler.estado} != 'cancelado'`
+        );
+
+    return await db
+      .select()
+      .from(contratosAlquiler)
+      .where(whereConditions)
+      .orderBy(sql`${contratosAlquiler.fechaInicio} DESC`);
+  }
+
+  async createContrato(insertContrato: InsertContratoAlquiler): Promise<ContratoAlquiler> {
+    const [contrato] = await db
+      .insert(contratosAlquiler)
+      .values(insertContrato)
+      .returning();
+    return contrato;
+  }
+
+  async updateContrato(id: number, insertContrato: Partial<InsertContratoAlquiler>): Promise<ContratoAlquiler | undefined> {
+    const [contrato] = await db
+      .update(contratosAlquiler)
+      .set(insertContrato)
+      .where(eq(contratosAlquiler.idContrato, id))
+      .returning();
+    return contrato || undefined;
+  }
+
+  async cancelarContrato(id: number, motivo: string): Promise<ContratoAlquiler | undefined> {
+    const [contrato] = await db
+      .update(contratosAlquiler)
+      .set({ 
+        estado: 'cancelado',
+        motivoCancelacion: motivo 
+      })
+      .where(eq(contratosAlquiler.idContrato, id))
+      .returning();
+    return contrato || undefined;
+  }
+
+  async getPago(id: number): Promise<PagoAlquiler | undefined> {
+    const [pago] = await db.select().from(pagosAlquiler).where(eq(pagosAlquiler.idPago, id));
+    return pago || undefined;
+  }
+
+  async getPagosByContrato(contratoId: number, ano?: number): Promise<PagoAlquiler[]> {
+    const whereConditions = ano
+      ? and(
+          eq(pagosAlquiler.idContrato, contratoId),
+          eq(pagosAlquiler.anoCorrespondiente, ano)
+        )
+      : eq(pagosAlquiler.idContrato, contratoId);
+
+    return await db
+      .select()
+      .from(pagosAlquiler)
+      .where(whereConditions)
+      .orderBy(sql`${pagosAlquiler.fechaPago} DESC`);
+  }
+
+  async createPago(insertPago: InsertPagoAlquiler): Promise<PagoAlquiler> {
+    const [pago] = await db
+      .insert(pagosAlquiler)
+      .values(insertPago)
+      .returning();
+    return pago;
+  }
+
+  async updatePago(id: number, insertPago: Partial<InsertPagoAlquiler>): Promise<PagoAlquiler | undefined> {
+    const [pago] = await db
+      .update(pagosAlquiler)
+      .set(insertPago)
+      .where(eq(pagosAlquiler.idPago, id))
+      .returning();
+    return pago || undefined;
   }
 }
 
