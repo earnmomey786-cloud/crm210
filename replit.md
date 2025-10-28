@@ -12,6 +12,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 28, 2025 - Fase 1C: Contract Management & Rental Tracking**
+- Created `contratos_alquiler` table for rental contract tracking with tenant information, dates, rent, and business status
+- Created `pagos_alquiler` table for payment tracking with status management and year filtering
+- Implemented `calcularDiasAlquilados` function with overlap detection to calculate rented days per year for amortization
+- Extended storage layer with CRUD methods for contracts and payments, including optional filtering and contract cancellation
+- Implemented complete API endpoints: GET/POST /api/propiedades/:id/contratos, PUT /api/contratos/:id, PUT /api/contratos/:id/cancelar, GET /api/propiedades/:id/dias-alquilados, GET/POST /api/contratos/:id/pagos, PUT /api/pagos/:id
+- Added placeholder UI section for rental contracts in property detail page (visible for 'alquiler' and 'mixta' property types)
+- Fixed type errors in Modelo 210 result display
+
 **October 28, 2025 - Fase 1B: Calculation Storage & History**
 - Created `declaraciones_210` database table to store declaration history with full calculation details
 - Enhanced calculation module to accept custom parameters (año, días, porcentaje aplicado)
@@ -72,6 +81,12 @@ Preferred communication style: Simple, everyday language.
 - `/api/propiedades/:id/copropietarios` - Co-owner management
 - `/api/propiedades/:id/modelo210` - Calculate Modelo 210 (GET - preview only)
 - `/api/propiedades/:id/calcular-imputacion` - Calculate and save Modelo 210 declarations (POST)
+- `/api/propiedades/:id/contratos` - Rental contracts for property (GET/POST)
+- `/api/propiedades/:id/dias-alquilados` - Calculate rented days per year with overlap detection (GET)
+- `/api/contratos/:id` - Individual contract operations (GET/PUT)
+- `/api/contratos/:id/cancelar` - Cancel contract with reason (PUT)
+- `/api/contratos/:id/pagos` - Rental payments for contract (GET/POST)
+- `/api/pagos/:id` - Individual payment operations (PUT)
 
 **Request/Response Handling:**
 - JSON body parsing with raw body preservation
@@ -91,8 +106,11 @@ Preferred communication style: Simple, everyday language.
 - `propiedades` table: Property details (cadastral reference, address, purchase info, cadastral values)
 - `propiedad_copropietarios` junction table: Co-ownership relationships with percentage shares
 - `declaraciones_210` table: Stored tax declarations with calculation details, formulas, and results
-- Soft deletion pattern (activo/activa boolean flags)
-- Indexed fields for common queries (NIE, client names, declaration types, declaration year)
+- `contratos_alquiler` table: Rental contract management with tenant info, dates, rent, payment terms, and business status (activo/finalizado/cancelado/renovado)
+- `pagos_alquiler` table: Payment tracking with monthly/annual organization, status tracking (pendiente/pagado/atrasado/impagado), and document references
+- Soft deletion pattern (activo/activa boolean flags for clients and properties)
+- Business status fields for contracts and payments (estado column with predefined values)
+- Indexed fields for common queries (NIE, client names, declaration types, declaration year, contract status)
 
 **Data Access Pattern:**
 - Storage abstraction layer (IStorage interface) in server/storage.ts

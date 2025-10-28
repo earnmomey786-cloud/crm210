@@ -93,18 +93,27 @@ export default function PropiedadDetalle() {
       // Mostrar los detalles del cálculo de la primera declaración (propietario principal)
       if (data.declaraciones.length > 0) {
         const primeraDeclaracion = data.declaraciones[0];
+        const valorCat = propiedad?.valorCatastralTotal ? parseFloat(propiedad.valorCatastralTotal) : 0;
+        const porcImputacion = porcentajeAplicado ? parseFloat(porcentajeAplicado) : 0;
+        const rentaImp = primeraDeclaracion.rentaImputada;
+        const baseCompleta = rentaImp;
+        const baseProporcional = primeraDeclaracion.baseImponible;
+
         setCalculoModelo({
           ano: parseInt(ano),
           dias: parseInt(dias),
           baseImponible: primeraDeclaracion.baseImponible,
           tipoImpositivo: primeraDeclaracion.tipoImpositivo,
           importeAPagar: primeraDeclaracion.cuotaPagar,
+          cuotaIntegra: primeraDeclaracion.cuotaPagar,
           formula: primeraDeclaracion.formula,
           detalles: {
-            valorCatastral: propiedad?.valorCatastralTotal ? parseFloat(propiedad.valorCatastralTotal) : 0,
-            porcentajeImputacion: porcentajeAplicado ? parseFloat(porcentajeAplicado) : 0,
+            valorCatastral: valorCat,
+            porcentajeImputacion: porcImputacion,
             porcentajePropiedad: primeraDeclaracion.porcentajeParticipacion,
-            rentaImputada: primeraDeclaracion.rentaImputada,
+            baseImponibleCompleta: baseCompleta,
+            baseImponibleProporcional: baseProporcional,
+            rentaImputada: rentaImp,
           }
         });
       }
@@ -438,6 +447,23 @@ export default function PropiedadDetalle() {
                 </div>
               )}
             </Card>
+
+            {(propiedad.tipoDeclaracion === 'alquiler' || propiedad.tipoDeclaracion === 'mixta') && (
+              <Card className="p-6 rounded-2xl" data-testid="card-contratos-alquiler">
+                <h2 className="text-lg font-semibold text-card-foreground mb-4 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Contratos de Alquiler
+                </h2>
+                <div className="text-center py-8">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Gestión de contratos disponible próximamente
+                  </p>
+                  <Button variant="outline" disabled data-testid="button-nuevo-contrato">
+                    Añadir Contrato
+                  </Button>
+                </div>
+              </Card>
+            )}
 
             {propiedad.tipoDeclaracion === 'imputacion' && (
               <>
