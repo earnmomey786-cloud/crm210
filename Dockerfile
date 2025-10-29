@@ -26,9 +26,8 @@ COPY package*.json ./
 # Install only production dependencies
 RUN npm ci --only=production
 
-# Copy built application from builder
+# Copy built application from builder (includes both backend and frontend)
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/client/dist ./client/dist
 
 # Expose port 80
 EXPOSE 80
