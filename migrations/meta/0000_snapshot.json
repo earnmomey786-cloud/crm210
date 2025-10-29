@@ -1,0 +1,1675 @@
+{
+  "id": "624a92c2-350f-435e-a5df-596ab29431d9",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.clientes": {
+      "name": "clientes",
+      "schema": "",
+      "columns": {
+        "id_cliente": {
+          "name": "id_cliente",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nie": {
+          "name": "nie",
+          "type": "varchar(12)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "apellidos": {
+          "name": "apellidos",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telefono": {
+          "name": "telefono",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ciudad_polonia": {
+          "name": "ciudad_polonia",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direccion_polonia": {
+          "name": "direccion_polonia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "fecha_alta": {
+          "name": "fecha_alta",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "notas": {
+          "name": "notas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_nie": {
+          "name": "idx_nie",
+          "columns": [
+            {
+              "expression": "nie",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_nombre": {
+          "name": "idx_nombre",
+          "columns": [
+            {
+              "expression": "nombre",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "clientes_nie_unique": {
+          "name": "clientes_nie_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "nie"
+          ]
+        },
+        "clientes_email_unique": {
+          "name": "clientes_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.compensaciones_rentas_negativas": {
+      "name": "compensaciones_rentas_negativas",
+      "schema": "",
+      "columns": {
+        "id_compensacion": {
+          "name": "id_compensacion",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_renta_negativa": {
+          "name": "id_renta_negativa",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_declaracion": {
+          "name": "id_declaracion",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ano_compensacion": {
+          "name": "ano_compensacion",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "importe_compensado": {
+          "name": "importe_compensado",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_compensacion": {
+          "name": "fecha_compensacion",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "usuario": {
+          "name": "usuario",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_comp_rn": {
+          "name": "idx_comp_rn",
+          "columns": [
+            {
+              "expression": "id_renta_negativa",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_comp_decl": {
+          "name": "idx_comp_decl",
+          "columns": [
+            {
+              "expression": "id_declaracion",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "compensaciones_rentas_negativas_id_renta_negativa_rentas_negativas_id_renta_negativa_fk": {
+          "name": "compensaciones_rentas_negativas_id_renta_negativa_rentas_negativas_id_renta_negativa_fk",
+          "tableFrom": "compensaciones_rentas_negativas",
+          "tableTo": "rentas_negativas",
+          "columnsFrom": [
+            "id_renta_negativa"
+          ],
+          "columnsTo": [
+            "id_renta_negativa"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "compensaciones_rentas_negativas_id_declaracion_declaraciones_210_id_declaracion_fk": {
+          "name": "compensaciones_rentas_negativas_id_declaracion_declaraciones_210_id_declaracion_fk",
+          "tableFrom": "compensaciones_rentas_negativas",
+          "tableTo": "declaraciones_210",
+          "columnsFrom": [
+            "id_declaracion"
+          ],
+          "columnsTo": [
+            "id_declaracion"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.contratos_alquiler": {
+      "name": "contratos_alquiler",
+      "schema": "",
+      "columns": {
+        "id_contrato": {
+          "name": "id_contrato",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_propiedad": {
+          "name": "id_propiedad",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_inicio": {
+          "name": "fecha_inicio",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_fin": {
+          "name": "fecha_fin",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "renta_mensual": {
+          "name": "renta_mensual",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "forma_pago": {
+          "name": "forma_pago",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dia_pago": {
+          "name": "dia_pago",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deposito": {
+          "name": "deposito",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nombre_inquilino": {
+          "name": "nombre_inquilino",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "apellidos_inquilino": {
+          "name": "apellidos_inquilino",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dni_nie_inquilino": {
+          "name": "dni_nie_inquilino",
+          "type": "varchar(12)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_inquilino": {
+          "name": "email_inquilino",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefono_inquilino": {
+          "name": "telefono_inquilino",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ruta_contrato_pdf": {
+          "name": "ruta_contrato_pdf",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'activo'"
+        },
+        "motivo_cancelacion": {
+          "name": "motivo_cancelacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_alta": {
+          "name": "fecha_alta",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "usuario_alta": {
+          "name": "usuario_alta",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "observaciones": {
+          "name": "observaciones",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_contrato_propiedad": {
+          "name": "idx_contrato_propiedad",
+          "columns": [
+            {
+              "expression": "id_propiedad",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_contrato_fechas": {
+          "name": "idx_contrato_fechas",
+          "columns": [
+            {
+              "expression": "fecha_inicio",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "fecha_fin",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_contrato_estado": {
+          "name": "idx_contrato_estado",
+          "columns": [
+            {
+              "expression": "estado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_contrato_inquilino": {
+          "name": "idx_contrato_inquilino",
+          "columns": [
+            {
+              "expression": "nombre_inquilino",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "contratos_alquiler_id_propiedad_propiedades_id_propiedad_fk": {
+          "name": "contratos_alquiler_id_propiedad_propiedades_id_propiedad_fk",
+          "tableFrom": "contratos_alquiler",
+          "tableTo": "propiedades",
+          "columnsFrom": [
+            "id_propiedad"
+          ],
+          "columnsTo": [
+            "id_propiedad"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.declaraciones_210": {
+      "name": "declaraciones_210",
+      "schema": "",
+      "columns": {
+        "id_declaracion": {
+          "name": "id_declaracion",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_propiedad": {
+          "name": "id_propiedad",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_cliente": {
+          "name": "id_cliente",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ano": {
+          "name": "ano",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trimestre": {
+          "name": "trimestre",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "modalidad": {
+          "name": "modalidad",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dias_declarados": {
+          "name": "dias_declarados",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valor_catastral_base": {
+          "name": "valor_catastral_base",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "porcentaje_aplicado": {
+          "name": "porcentaje_aplicado",
+          "type": "numeric(5, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "renta_imputada": {
+          "name": "renta_imputada",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ingresos_alquiler": {
+          "name": "ingresos_alquiler",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gastos_deducibles": {
+          "name": "gastos_deducibles",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amortizacion": {
+          "name": "amortizacion",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valor_total_adquisicion": {
+          "name": "valor_total_adquisicion",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valor_amortizable": {
+          "name": "valor_amortizable",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amortizacion_anual_propiedad": {
+          "name": "amortizacion_anual_propiedad",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amortizacion_proporcional_dias": {
+          "name": "amortizacion_proporcional_dias",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amortizacion_propietario": {
+          "name": "amortizacion_propietario",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_imponible": {
+          "name": "base_imponible",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cuota_pagar": {
+          "name": "cuota_pagar",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "porcentaje_participacion": {
+          "name": "porcentaje_participacion",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'100.00'"
+        },
+        "estado": {
+          "name": "estado",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'borrador'"
+        },
+        "fecha_presentacion": {
+          "name": "fecha_presentacion",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_calculo": {
+          "name": "fecha_calculo",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "usuario_calculo": {
+          "name": "usuario_calculo",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formula_aplicada": {
+          "name": "formula_aplicada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_decl_propiedad": {
+          "name": "idx_decl_propiedad",
+          "columns": [
+            {
+              "expression": "id_propiedad",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_decl_cliente": {
+          "name": "idx_decl_cliente",
+          "columns": [
+            {
+              "expression": "id_cliente",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_decl_ano": {
+          "name": "idx_decl_ano",
+          "columns": [
+            {
+              "expression": "ano",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_decl_tipo": {
+          "name": "idx_decl_tipo",
+          "columns": [
+            {
+              "expression": "tipo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "declaraciones_210_id_propiedad_propiedades_id_propiedad_fk": {
+          "name": "declaraciones_210_id_propiedad_propiedades_id_propiedad_fk",
+          "tableFrom": "declaraciones_210",
+          "tableTo": "propiedades",
+          "columnsFrom": [
+            "id_propiedad"
+          ],
+          "columnsTo": [
+            "id_propiedad"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "declaraciones_210_id_cliente_clientes_id_cliente_fk": {
+          "name": "declaraciones_210_id_cliente_clientes_id_cliente_fk",
+          "tableFrom": "declaraciones_210",
+          "tableTo": "clientes",
+          "columnsFrom": [
+            "id_cliente"
+          ],
+          "columnsTo": [
+            "id_cliente"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.documentos_adquisicion": {
+      "name": "documentos_adquisicion",
+      "schema": "",
+      "columns": {
+        "id_documento": {
+          "name": "id_documento",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_propiedad": {
+          "name": "id_propiedad",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "importe": {
+          "name": "importe",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_documento": {
+          "name": "fecha_documento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ruta_archivo": {
+          "name": "ruta_archivo",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "validado": {
+          "name": "validado",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "fecha_validacion": {
+          "name": "fecha_validacion",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_alta": {
+          "name": "fecha_alta",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "usuario_alta": {
+          "name": "usuario_alta",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_doc_adq_propiedad": {
+          "name": "idx_doc_adq_propiedad",
+          "columns": [
+            {
+              "expression": "id_propiedad",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_doc_adq_tipo": {
+          "name": "idx_doc_adq_tipo",
+          "columns": [
+            {
+              "expression": "tipo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "documentos_adquisicion_id_propiedad_propiedades_id_propiedad_fk": {
+          "name": "documentos_adquisicion_id_propiedad_propiedades_id_propiedad_fk",
+          "tableFrom": "documentos_adquisicion",
+          "tableTo": "propiedades",
+          "columnsFrom": [
+            "id_propiedad"
+          ],
+          "columnsTo": [
+            "id_propiedad"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.gastos": {
+      "name": "gastos",
+      "schema": "",
+      "columns": {
+        "id_gasto": {
+          "name": "id_gasto",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_propiedad": {
+          "name": "id_propiedad",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo_gasto": {
+          "name": "tipo_gasto",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "es_proporcional": {
+          "name": "es_proporcional",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "tipo_gasto IN ('ibi', 'comunidad', 'seguro', 'intereses_hipoteca', 'suministros', 'conservacion')",
+            "type": "stored"
+          }
+        },
+        "genera_renta_negativa": {
+          "name": "genera_renta_negativa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "tipo_gasto IN ('reparacion', 'intereses_hipoteca')",
+            "type": "stored"
+          }
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "importe": {
+          "name": "importe",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_gasto": {
+          "name": "fecha_gasto",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_inicio_periodo": {
+          "name": "fecha_inicio_periodo",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_fin_periodo": {
+          "name": "fecha_fin_periodo",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nombre_proveedor": {
+          "name": "nombre_proveedor",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "numero_factura": {
+          "name": "numero_factura",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ruta_factura": {
+          "name": "ruta_factura",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "validado": {
+          "name": "validado",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "fecha_validacion": {
+          "name": "fecha_validacion",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_registro": {
+          "name": "fecha_registro",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "usuario_registro": {
+          "name": "usuario_registro",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "observaciones": {
+          "name": "observaciones",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_gasto_propiedad": {
+          "name": "idx_gasto_propiedad",
+          "columns": [
+            {
+              "expression": "id_propiedad",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_gasto_tipo": {
+          "name": "idx_gasto_tipo",
+          "columns": [
+            {
+              "expression": "tipo_gasto",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_gasto_fecha": {
+          "name": "idx_gasto_fecha",
+          "columns": [
+            {
+              "expression": "fecha_gasto",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_gasto_validado": {
+          "name": "idx_gasto_validado",
+          "columns": [
+            {
+              "expression": "validado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "gastos_id_propiedad_propiedades_id_propiedad_fk": {
+          "name": "gastos_id_propiedad_propiedades_id_propiedad_fk",
+          "tableFrom": "gastos",
+          "tableTo": "propiedades",
+          "columnsFrom": [
+            "id_propiedad"
+          ],
+          "columnsTo": [
+            "id_propiedad"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pagos_alquiler": {
+      "name": "pagos_alquiler",
+      "schema": "",
+      "columns": {
+        "id_pago": {
+          "name": "id_pago",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_contrato": {
+          "name": "id_contrato",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_pago": {
+          "name": "fecha_pago",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mes_correspondiente": {
+          "name": "mes_correspondiente",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ano_correspondiente": {
+          "name": "ano_correspondiente",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "importe": {
+          "name": "importe",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "metodo_pago": {
+          "name": "metodo_pago",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "referencia_bancaria": {
+          "name": "referencia_bancaria",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ruta_justificante": {
+          "name": "ruta_justificante",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_registro": {
+          "name": "fecha_registro",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_pago_contrato": {
+          "name": "idx_pago_contrato",
+          "columns": [
+            {
+              "expression": "id_contrato",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_pago_fecha": {
+          "name": "idx_pago_fecha",
+          "columns": [
+            {
+              "expression": "fecha_pago",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_pago_estado": {
+          "name": "idx_pago_estado",
+          "columns": [
+            {
+              "expression": "estado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pagos_alquiler_id_contrato_contratos_alquiler_id_contrato_fk": {
+          "name": "pagos_alquiler_id_contrato_contratos_alquiler_id_contrato_fk",
+          "tableFrom": "pagos_alquiler",
+          "tableTo": "contratos_alquiler",
+          "columnsFrom": [
+            "id_contrato"
+          ],
+          "columnsTo": [
+            "id_contrato"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.propiedad_copropietarios": {
+      "name": "propiedad_copropietarios",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_propiedad": {
+          "name": "id_propiedad",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_cliente": {
+          "name": "id_cliente",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "porcentaje": {
+          "name": "porcentaje",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_inicio": {
+          "name": "fecha_inicio",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "idx_propiedad_cop": {
+          "name": "idx_propiedad_cop",
+          "columns": [
+            {
+              "expression": "id_propiedad",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "propiedad_copropietarios_id_propiedad_propiedades_id_propiedad_fk": {
+          "name": "propiedad_copropietarios_id_propiedad_propiedades_id_propiedad_fk",
+          "tableFrom": "propiedad_copropietarios",
+          "tableTo": "propiedades",
+          "columnsFrom": [
+            "id_propiedad"
+          ],
+          "columnsTo": [
+            "id_propiedad"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "propiedad_copropietarios_id_cliente_clientes_id_cliente_fk": {
+          "name": "propiedad_copropietarios_id_cliente_clientes_id_cliente_fk",
+          "tableFrom": "propiedad_copropietarios",
+          "tableTo": "clientes",
+          "columnsFrom": [
+            "id_cliente"
+          ],
+          "columnsTo": [
+            "id_cliente"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.propiedades": {
+      "name": "propiedades",
+      "schema": "",
+      "columns": {
+        "id_propiedad": {
+          "name": "id_propiedad",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_cliente": {
+          "name": "id_cliente",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "referencia_catastral": {
+          "name": "referencia_catastral",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "direccion": {
+          "name": "direccion",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provincia": {
+          "name": "provincia",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "municipio": {
+          "name": "municipio",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo_declaracion": {
+          "name": "tipo_declaracion",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'imputacion'"
+        },
+        "fecha_compra": {
+          "name": "fecha_compra",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "precio_compra": {
+          "name": "precio_compra",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valor_catastral_total": {
+          "name": "valor_catastral_total",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valor_catastral_suelo": {
+          "name": "valor_catastral_suelo",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valor_catastral_construccion": {
+          "name": "valor_catastral_construccion",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valor_total_adquisicion": {
+          "name": "valor_total_adquisicion",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "porcentaje_construccion": {
+          "name": "porcentaje_construccion",
+          "type": "numeric(5, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valor_amortizable": {
+          "name": "valor_amortizable",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amortizacion_anual": {
+          "name": "amortizacion_anual",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activa": {
+          "name": "activa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "fecha_alta": {
+          "name": "fecha_alta",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "notas": {
+          "name": "notas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_cliente": {
+          "name": "idx_cliente",
+          "columns": [
+            {
+              "expression": "id_cliente",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_tipo_declaracion": {
+          "name": "idx_tipo_declaracion",
+          "columns": [
+            {
+              "expression": "tipo_declaracion",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "propiedades_id_cliente_clientes_id_cliente_fk": {
+          "name": "propiedades_id_cliente_clientes_id_cliente_fk",
+          "tableFrom": "propiedades",
+          "tableTo": "clientes",
+          "columnsFrom": [
+            "id_cliente"
+          ],
+          "columnsTo": [
+            "id_cliente"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "propiedades_referencia_catastral_unique": {
+          "name": "propiedades_referencia_catastral_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "referencia_catastral"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.rentas_negativas": {
+      "name": "rentas_negativas",
+      "schema": "",
+      "columns": {
+        "id_renta_negativa": {
+          "name": "id_renta_negativa",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_propiedad": {
+          "name": "id_propiedad",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_cliente": {
+          "name": "id_cliente",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ano_origen": {
+          "name": "ano_origen",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "importe_negativo": {
+          "name": "importe_negativo",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "concepto": {
+          "name": "concepto",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "importe_compensado": {
+          "name": "importe_compensado",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0.00'"
+        },
+        "importe_pendiente": {
+          "name": "importe_pendiente",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "importe_negativo - importe_compensado",
+            "type": "stored"
+          }
+        },
+        "ano_limite": {
+          "name": "ano_limite",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "ano_origen + 4",
+            "type": "stored"
+          }
+        },
+        "estado": {
+          "name": "estado",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "fecha_creacion": {
+          "name": "fecha_creacion",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "observaciones": {
+          "name": "observaciones",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_rn_propiedad": {
+          "name": "idx_rn_propiedad",
+          "columns": [
+            {
+              "expression": "id_propiedad",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_rn_cliente": {
+          "name": "idx_rn_cliente",
+          "columns": [
+            {
+              "expression": "id_cliente",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_rn_ano": {
+          "name": "idx_rn_ano",
+          "columns": [
+            {
+              "expression": "ano_origen",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_rn_estado": {
+          "name": "idx_rn_estado",
+          "columns": [
+            {
+              "expression": "estado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "rentas_negativas_id_propiedad_propiedades_id_propiedad_fk": {
+          "name": "rentas_negativas_id_propiedad_propiedades_id_propiedad_fk",
+          "tableFrom": "rentas_negativas",
+          "tableTo": "propiedades",
+          "columnsFrom": [
+            "id_propiedad"
+          ],
+          "columnsTo": [
+            "id_propiedad"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "rentas_negativas_id_cliente_clientes_id_cliente_fk": {
+          "name": "rentas_negativas_id_cliente_clientes_id_cliente_fk",
+          "tableFrom": "rentas_negativas",
+          "tableTo": "clientes",
+          "columnsFrom": [
+            "id_cliente"
+          ],
+          "columnsTo": [
+            "id_cliente"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
