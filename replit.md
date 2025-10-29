@@ -12,7 +12,7 @@ Preferred communication style: Simple, everyday language.
 The application features a soft pastel design with a grayish-blue background, light gray-blue cards, and subtle shadows. It utilizes rounded corners (16px) and Inter font for a calm, friendly, and professional aesthetic. The property detail page is structured with a 5-tab navigation system: "Datos Generales", "Adquisición", "Gastos", "Contratos", and "Cálculos" for clear separation and improved user experience. Color-coded badges indicate property types (Imputación - pink, Alquiler - mint, Mixta - yellow/cream).
 
 ### Technical Implementations
-The system is a full-stack TypeScript application. The frontend uses React 18, Wouter for routing, TanStack Query for server state management, and React Hook Form with Zod for form validation. UI components are built with Shadcn/ui (on Radix UI primitives) and styled using Tailwind CSS. The backend is an Express.js application following a RESTful API design, with Zod for request validation. Data persistence is handled by PostgreSQL, accessed via Drizzle ORM and the Neon serverless driver.
+The system is a full-stack TypeScript application. The frontend uses React 18, Wouter for routing, TanStack Query for server state management, and React Hook Form with Zod for form validation. UI components are built with Shadcn/ui (on Radix UI primitives) and styled using Tailwind CSS. The backend is an Express.js application following a RESTful API design, with Zod for request validation. Data persistence is handled by PostgreSQL (Supabase), accessed via Drizzle ORM and the standard node-postgres driver.
 
 ### Feature Specifications
 Key functionalities include:
@@ -33,10 +33,22 @@ Key functionalities include:
 
 ## External Dependencies
 
-- **Database**: Neon (serverless PostgreSQL) with `@neondatabase/serverless` driver.
+- **Database**: Supabase (PostgreSQL) with standard `pg` (node-postgres) driver.
 - **UI Components**: `@radix-ui/react-*`, Lucide React (icons), `embla-carousel-react`, `cmdk`, `vaul`.
 - **Form & Validation**: `react-hook-form`, `zod`, `@hookform/resolvers`, `drizzle-zod`.
 - **Styling**: `tailwindcss`, `class-variance-authority`, `clsx`, `tailwind-merge`.
 - **Date Management**: `date-fns`.
 - **ORM**: Drizzle ORM (`drizzle-orm`, `drizzle-kit`).
-- **Development Tools**: `tsx`, `ws` (for Neon driver compatibility).
+- **Development Tools**: `tsx`.
+
+## Deployment
+
+The application is configured for deployment to Easypanel with the following setup:
+- **Database**: Supabase PostgreSQL (connection via DATABASE_URL environment variable)
+- **Build Command**: `npm install && npm run build`
+- **Start Command**: `node dist/index.js`
+- **Port**: 80 (configurable via PORT environment variable, defaults to 5000 in development)
+- **Required Environment Variables**: 
+  - `DATABASE_URL`: PostgreSQL connection string
+  - `NODE_ENV`: Set to `production` for production deployments
+  - `SESSION_SECRET`: Secret key for session management
