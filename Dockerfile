@@ -23,8 +23,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --only=production
+# Install all dependencies (needed for vite import in server code)
+RUN npm ci
 
 # Copy built application from builder (includes both backend and frontend)
 COPY --from=builder /app/dist ./dist
